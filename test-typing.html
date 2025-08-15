@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Indicator Test</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .typing-display { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .typing-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 5px 0; }
+        .typing-chip { background: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; }
+        .typing-chip.more { background: rgba(0, 0, 0, 0.25); }
+        button { margin: 5px; padding: 8px 16px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Typing Indicator Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Room Connection</h3>
+        <input type="text" id="roomId" placeholder="Room ID" value="test-room-123">
+        <input type="text" id="userName" placeholder="Your Name" value="TestUser1">
+        <button onclick="joinRoom()">Join Room</button>
+        <button onclick="leaveRoom()">Leave Room</button>
+        <p id="connectionStatus">Not connected</p>
+    </div>
+
+    <div class="test-section">
+        <h3>Simulate Typing</h3>
+        <button onclick="startTyping()">Start Typing</button>
+        <button onclick="stopTyping()">Stop Typing</button>
+        <p id="typingStatus">Not typing</p>
+    </div>
+
+    <div class="test-section">
+        <h3>Typing Indicators</h3>
+        <div id="typingDisplay" class="typing-display">
+            <p>No one is typing</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Room Users</h3>
+        <div id="usersDisplay">No users</div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:3000');
+        let currentRoom = '';
+        let currentUser = '';
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            document.getElementById('connectionStatus').textContent = 'Connected to server';
+        });
+
+        socket.on('userJoined', (users) => {
+            console.log('Users in room:', users);
+            document.getElementById('usersDisplay').innerHTML = users.map(u => `<div>• ${u}</div>`).join('');
+        });
+
+        socket.on('typingUsers', (users) => {
+            console.log('Typing users:', users);
+            const display = document.getElementById('typingDisplay');
+            
+            if (users.length === 0) {
+                display.innerHTML = '<p>No one is typing</p>';
+            } else {
+                const chips = users.slice(0, 3).map(u => `<span class="typing-chip">${u.slice(0,8)}</span>`).join('');
+                const moreChip = users.length > 3 ? `<span class="typing-chip more">+${users.length - 3}</span>` : '';
+                display.innerHTML = `
+                    <div class="typing-chips">${chips}${moreChip}</div>
+                    <span>typing…</span>
+                `;
+            }
+        });
+
+        function joinRoom() {
+            const roomId = document.getElementById('roomId').value;
+            const userName = document.getElementById('userName').value;
+            
+            if (roomId && userName) {
+                currentRoom = roomId;
+                currentUser = userName;
+                socket.emit('join_room', { roomId, userName });
+                document.getElementById('connectionStatus').textContent = `Joined room: ${roomId} as ${userName}`;
+            }
+        }
+
+        function leaveRoom() {
+            if (currentRoom) {
+                socket.emit('leaveRoom');
+                currentRoom = '';
+                currentUser = '';
+                document.getElementById('connectionStatus').textContent = 'Left room';
+                document.getElementById('usersDisplay').innerHTML = 'No users';
+                document.getElementById('typingDisplay').innerHTML = '<p>No one is typing</p>';
+            }
+        }
+
+        function startTyping() {
+            if (currentRoom && currentUser) {
+                socket.emit('typing', { roomId: currentRoom, userName: currentUser });
+                document.getElementById('typingStatus').textContent = 'Started typing...';
+            }
+        }
+
+        function stopTyping() {
+            if (currentRoom) {
+                socket.emit('stopTyping', { roomId: currentRoom });
+                document.getElementById('typingStatus').textContent = 'Stopped typing';
+            }
+        }
+
+        // Auto-stop typing after 2 seconds
+        let typingTimeout;
+        function startTypingWithAutoStop() {
+            if (currentRoom && currentUser) {
+                socket.emit('typing', { roomId: currentRoom, userName: currentUser });
+                document.getElementById('typingStatus').textContent = 'Started typing (auto-stop in 2s)...';
+                
+                if (typingTimeout) clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    socket.emit('stopTyping', { roomId: currentRoom });
+                    document.getElementById('typingStatus').textContent = 'Auto-stopped typing';
+                }, 2000);
+            }
+        }
+
+        // Add auto-typing button
+        document.querySelector('.test-section:nth-child(2)').innerHTML += '<button onclick="startTypingWithAutoStop()">Start Typing (Auto-stop)</button>';
+    </script>
+</body>
+</html>
+

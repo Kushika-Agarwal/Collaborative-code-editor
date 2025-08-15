@@ -6,6 +6,14 @@ class RoomController {
   constructor(io) {
     this.io = io; // Store io instance for broadcasting
   }
+  // Broadcast current typing users in a room
+  broadcastTypingUsers(roomId) {
+    const usersInRoom = userService.getUsersInRoom(roomId);
+    const typingUsers = usersInRoom
+      .filter((u) => u.isTyping)
+      .map((u) => u.userName);
+    this.io.to(roomId).emit("typingUsers", typingUsers);
+  }
   // Handle user joining a room
   handleJoinRoom(socket, { roomId, userName }) {
     try {
@@ -85,6 +93,9 @@ class RoomController {
         const { users } = roomService.removeUserFromRoom(roomId, userName);
 
         socket.to(roomId).emit("userJoined", users);
+        // Ensure typing list is updated
+        userService.updateUserTyping(socket.id, false);
+        this.broadcastTypingUsers(roomId);
         console.log(`User ${userName} left room ${roomId}`);
         return { success: true };
       }
@@ -99,10 +110,22 @@ class RoomController {
   handleTyping(socket, { roomId, userName }) {
     try {
       userService.updateUserTyping(socket.id, true);
-      socket.to(roomId).emit("userTyping", userName);
+      this.broadcastTypingUsers(roomId);
       return { success: true };
     } catch (error) {
       console.error('Error in handleTyping:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Handle stop typing indicator
+  handleStopTyping(socket, { roomId }) {
+    try {
+      userService.updateUserTyping(socket.id, false);
+      this.broadcastTypingUsers(roomId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error in handleStopTyping:', error);
       return { success: false, error: error.message };
     }
   }
@@ -134,6 +157,9 @@ class RoomController {
         if (roomId) {
           const { users } = roomService.removeUserFromRoom(roomId, userName);
           socket.to(roomId).emit("userJoined", users);
+          // Ensure typing list is updated
+          userService.updateUserTyping(socket.id, false);
+          this.broadcastTypingUsers(roomId);
         }
 
         userService.removeUser(socket.id);
