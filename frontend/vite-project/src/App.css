@@ -177,8 +177,33 @@ button:hover {
 
 .typing-indicator {
   margin-top: 1rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typing-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.typing-chip {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.typing-chip.more {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.typing-text {
+  opacity: 0.9;
 }
 
 .language-selector {

@@ -52,6 +52,13 @@ class SocketRoutes {
         }
       });
 
+      socket.on("stopTyping", (data) => {
+        const result = this.roomController.handleStopTyping(socket, data);
+        if (!result.success) {
+          console.error('Stop typing error:', result.error);
+        }
+      });
+
       socket.on("chatMessage", (data) => {
         const result = this.roomController.handleChatMessage(socket, data);
         if (!result.success) {

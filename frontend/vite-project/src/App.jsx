@@ -14,7 +14,8 @@ const App = () => {
   const [code, setCode] = useState("// start coding here...");
   const [copySuccess, setCopySuccess] = useState("");
   const [users, setUsers] = useState([]);
-  const [typing, setTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [typingTimeout, setTypingTimeout] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -63,11 +64,8 @@ const App = () => {
       setCode(newCode);
     });
 
-    socket.on("userTyping", (user) => {
-      setTyping(`${user.slice(0, 8)} is typing...`);
-      setTimeout(() => {
-        setTyping("");
-      }, 3000);
+    socket.on("typingUsers", (usersList) => {
+      setTypingUsers(usersList);
     });
 
     socket.on("languageUpdated", (newLanguage) => {
@@ -131,7 +129,7 @@ const App = () => {
     return () => {
       socket.off("userJoined");
       socket.off("codeUpdated");
-      socket.off("userTyping");
+      socket.off("typingUsers");
       socket.off("languageUpdated");
       socket.off("chatMessage");
       socket.off("versionAdded");
@@ -176,7 +174,7 @@ const App = () => {
     setUserName("");
     setCode("// start coding here...");
     setUsers([]);
-    setTyping("");
+    setTypingUsers([]);
     setLanguage("js");
     setChatMessages([]);
     setChatInput("");
@@ -197,32 +195,24 @@ const App = () => {
   const handleChange = (newCode) => {
     setCode(newCode);
 
-
     // Clear existing timeout
-
-
     if (codeChangeTimeout) {
       clearTimeout(codeChangeTimeout);
     }
 
-
-    // Debounce code change to avoid too many version saves
-
-
+    // Debounce code change to avoid too many saves
     const newTimeout = setTimeout(() => {
       socket.emit("codeChange", { roomId, code: newCode });
-
-    }, 500); // 500ms delay
-
-    setCodeChangeTimeout(newTimeout);
-
-    // Immediate typing notification
-
     }, 500);
-
     setCodeChangeTimeout(newTimeout);
 
+    // Typing indicator: emit start immediately and schedule stop
     socket.emit("typing", { roomId, userName });
+    if (typingTimeout) clearTimeout(typingTimeout);
+    const stopTimeout = setTimeout(() => {
+      socket.emit("stopTyping", { roomId });
+    }, 1200);
+    setTypingTimeout(stopTimeout);
   };
 
   const handleLanguageChange = (e) => {
@@ -321,7 +311,19 @@ const App = () => {
             <li key={index}>{user.slice(0, 8)}</li>
           ))}
         </ul>
-        <p className="typing-indicator">{typing}</p>
+        {typingUsers.length > 0 && (
+          <div className="typing-indicator">
+            <div className="typing-chips">
+              {typingUsers.slice(0, 3).map((u, idx) => (
+                <span key={idx} className="typing-chip">{u.slice(0,8)}</span>
+              ))}
+              {typingUsers.length > 3 && (
+                <span className="typing-chip more">+{typingUsers.length - 3}</span>
+              )}
+            </div>
+            <span className="typing-text">typing…</span>
+          </div>
+        )}
         <select
           className="language-selector"
           value={language}
