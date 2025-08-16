@@ -204,6 +204,49 @@ button:hover {
   font-size: 1.5rem;
 }
 
+
+.copy-room-id-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  min-width: 120px;
+  justify-content: center;
+}
+
+.copy-room-id-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.copy-room-id-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.copy-icon {
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.copy-room-id-btn:hover .copy-icon {
+  transform: scale(1.1);
+}
+
+.copy-text {
+  font-weight: 500;
+}
+
 .copy-button {
   background-color: var(--info-color);
   color: var(--button-text-color);

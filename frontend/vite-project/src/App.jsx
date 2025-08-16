@@ -13,6 +13,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { useToast } from "./hooks/use-toast";
 import NotFound from "./pages/not-found";
 import { 
   detectFileType, 
@@ -39,9 +40,8 @@ const App = () => {
   const [code, setCode] = useState("");
   const [filename, setFilename] = useState("untitled.js");
   const [pendingFilename, setPendingFilename] = useState("");
-  
-  const [copySuccess, setCopySuccess] = useState("");
   const [users, setUsers] = useState([]);
+  const { toast } = useToast();
   const [typing, setTyping] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
@@ -283,16 +283,38 @@ const App = () => {
     setTimeout(() => {
       socket.emit("getUndoRedoState", { roomId });
     }, 1000);
+  };
 
-    if (roomId && userName) {
-      socket.emit("join_room", { roomId, userName });
-      setJoined(true);
-
-      setTimeout(() => {
-        socket.emit("getUndoRedoState", { roomId });
-      }, 1000);
-    } else {
-      alert("Please enter both Room Id and Your Name");
+  const copyRoomId = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(roomId);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = roomId;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      toast({
+        title: "Copied to Clipboard",
+        description: `Room ID: ${roomId}`,
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error('Failed to copy room ID:', err);
+      toast({
+        title: "Failed to Copy",
+        description: "Unable to copy room ID to clipboard",
+        variant: "destructive",
+        duration: 2000,
+      });
     }
   };
 
@@ -353,13 +375,6 @@ const App = () => {
     setShowAllLanguages(false);
     setChatMessages([]);
     setChatInput("");
-  };
-
-  const copyRoomId = () => {
-    navigator.clipboard.writeText(roomId).then(() => {
-      setCopySuccess("Copied!");
-      setTimeout(() => setCopySuccess(""), 2000);
-    });
   };
 
   const handleChange = (newCode) => {
@@ -652,8 +667,14 @@ const App = () => {
             </button>
             <div className="room-info">
               <h2>Code Room: {roomId}</h2>
-              <button onClick={copyRoomId}> Copy Id</button>
-              {copySuccess && <span className="copy-success">{copySuccess}</span>}
+              <button 
+                className="copy-room-id-btn"
+                onClick={copyRoomId}
+                title="Copy Room ID to clipboard"
+              >
+                <span className="copy-icon">📋</span>
+                <span className="copy-text">Copy ID</span>
+              </button>
             </div>
             <h3>Users in Room:</h3>
             <ul>
