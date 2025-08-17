@@ -73,6 +73,12 @@ const App = () => {
   // Scroll Control State
   const messagesEndRef = useRef(null);
 
+  // Editor and remote cursor refs
+  const editorRef = useRef(null);
+  const monacoRef = useRef(null);
+  // Map of username -> { widget, position }
+  const remoteCursorsRef = useRef(new Map());
+
    // auto-scroll effect
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -106,7 +112,18 @@ const App = () => {
 
   useEffect(() => {
     // User and room events
-    socket.on("userJoined", (users) => setUsers(users));
+    socket.on("userJoined", (users) => {
+      setUsers(users);
+      // If you're alone (no other users), clear remote cursors
+      const others = users.filter(u => u !== userName);
+      if (others.length === 0 && editorRef.current) {
+        // remove any existing remote widgets
+        remoteCursorsRef.current.forEach(({ widget }) => {
+          try { editorRef.current.removeContentWidget(widget); } catch {}
+        });
+        remoteCursorsRef.current.clear();
+      }
+    });
     socket.on("codeUpdated", (newCode) => {
       setCode(newCode);
       setCurrentFileContent(newCode);
@@ -278,6 +295,47 @@ const App = () => {
         ...prev,
         { userName: "System", message: `Filename changed from "${oldFilename}" to "${newFilename}" by ${changedBy}` }
       ]);
+    });
+
+    // Remote cursor updates
+    socket.on("remoteCursor", ({ userName: remoteName, position, filename: file }) => {
+      // Only show cursors for current file
+      if (!editorRef.current || !file || file !== (activeFile || filename)) return;
+
+      const pos = new monaco.Position(position.lineNumber, position.column);
+      const editor = editorRef.current;
+
+      // Create or update content widget for this user
+      let entry = remoteCursorsRef.current.get(remoteName);
+      if (!entry) {
+        const domNode = document.createElement('div');
+        domNode.className = 'remote-cursor-container';
+        const caret = document.createElement('div');
+        caret.className = 'remote-cursor-caret';
+        const label = document.createElement('div');
+        label.className = 'remote-cursor-label';
+        label.textContent = remoteName.slice(0, 8);
+        domNode.appendChild(label);
+        domNode.appendChild(caret);
+
+        const widgetId = `remote-cursor-${remoteName}`;
+        const widget = {
+          getId: () => widgetId,
+          getDomNode: () => domNode,
+          getPosition: () => ({ position: pos, preference: [monaco.editor.ContentWidgetPositionPreference.EXACT] }),
+        };
+
+        editor.addContentWidget(widget);
+        remoteCursorsRef.current.set(remoteName, { widget, position: pos });
+      } else {
+        // Update position
+        entry.position = pos;
+        const widget = entry.widget;
+        // Monaco requires calling layoutContentWidget to update position
+        // Update the widget's getPosition to return the latest position
+        widget.getPosition = () => ({ position: entry.position, preference: [monaco.editor.ContentWidgetPositionPreference.EXACT] });
+        editor.layoutContentWidget(widget);
+      }
     });
 
     return () => {
@@ -546,6 +604,8 @@ const App = () => {
   };
 
   const handleEditorOnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
     const placeholderEl = document.querySelector('.monaco-placeholder');
     if (placeholderEl) placeholderEl.style.display = 'block';
     editor.focus();
@@ -853,6 +913,11 @@ const App = () => {
                 fontSize: 14,
               }}
             />
+            {users.filter(u => u !== userName).length === 0 && (
+              <div className="collab-hint">
+                Waiting for collaborators…
+              </div>
+            )}
             <div className={`monaco-placeholder ${theme === 'dark' ? 'placeholder-dark' : 'placeholder-light'}`}>{placeholderText}</div>
             <VideoCall
               socket={socket}

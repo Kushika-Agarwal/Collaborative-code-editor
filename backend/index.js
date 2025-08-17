@@ -67,6 +67,12 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("chatMessage", { userName, message });
   });
 
+  // Cursor presence: relay a user's cursor position to others in the same room
+  socket.on("cursorMove", ({ roomId, userName, position, filename }) => {
+    // Broadcast to everyone else in the room
+    socket.to(roomId).emit("remoteCursor", { userName, position, filename });
+  });
+
   // Video call signaling events
   socket.on("join-call", ({ roomId, userName }) => {
     socket.join(roomId + "-call");
