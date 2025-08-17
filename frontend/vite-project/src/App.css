@@ -794,3 +794,32 @@ button:hover {
   color: #222;
   border-color: rgba(0, 0, 0, 0.15);
 }
+
+/* toast css */
+/* Add this to App.css */
+
+.reconnecting-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #ffc107; /* A warning yellow color */
+  color: #212529;
+  text-align: center;
+  padding: 8px;
+  font-weight: bold;
+  z-index: 9999;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}

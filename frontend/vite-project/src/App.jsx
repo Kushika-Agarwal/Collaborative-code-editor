@@ -65,6 +65,10 @@ const App = () => {
   const [isChatDetached, setIsChatDetached] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
 
+  // New state and ref for connection status
+  const [isConnected, setIsConnected] = useState(socket.connected);
+  const isInitialConnect = useRef(true);
+
   const [codeChangeTimeout, setCodeChangeTimeout] = useState(null);
   const [theme, setTheme] = useState("dark");
 
@@ -97,6 +101,40 @@ const App = () => {
       document.body.classList.add("light-mode");
     }
   }, []);
+
+  // New useEffect to handle connection status and toasts
+  useEffect(() => {
+    const handleConnect = () => {
+      setIsConnected(true);
+      if (isInitialConnect.current) {
+        isInitialConnect.current = false;
+      } else {
+        toast({
+          title: "Reconnected",
+          description: "You are back online.",
+          duration: 3000,
+        });
+      }
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      toast({
+        title: "Connection Lost",
+        description: "Attempting to reconnect...",
+        variant: "destructive",
+        duration: 5000,
+      });
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [toast]);
 
   const toggleTheme = () => {
     if (theme === "dark") {
@@ -450,6 +488,7 @@ const App = () => {
     setShowAllLanguages(false);
     setChatMessages([]);
     setChatInput("");
+    isInitialConnect.current = true; // Reset for the next connection
   };
 
   const handleChange = (newCode) => {
@@ -740,6 +779,12 @@ const App = () => {
           <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        {/* Reconnecting indicator */}
+        {!isConnected && (
+          <div className="reconnecting-overlay">
+            Reconnecting…
+          </div>
+        )}
     <>
       <ResizableLayout
         sidebar={
@@ -791,7 +836,7 @@ const App = () => {
                 />
                 <button onClick={saveFilenameChange} className="save-filename-btn">Rename</button>
               </div>
-              
+
               <div className="language-selector-group">
                 <label htmlFor="language">Language:</label>
                 <select
