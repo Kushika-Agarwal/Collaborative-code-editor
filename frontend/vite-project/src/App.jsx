@@ -899,6 +899,9 @@ const App = () => {
               </span>
             </div>
             <div style={{ position: "relative", height: "calc(100% - 40px)" }}>
+             {/* line numbers in the Monaco Editor for
+              collaborative code editor, you only need to update the 
+              editor options */}
             <Editor
               height="100%"
               defaultLanguage={currentFileLanguage}
@@ -909,6 +912,7 @@ const App = () => {
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
+                lineNumbers: "on",
               }}
             />
             {!(currentFileContent || code) && (
