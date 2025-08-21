@@ -832,12 +832,14 @@ const App = () => {
           <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        {/* Reconnecting indicator */}
+        {/* Reconnecting indicator
         {!isConnected && (
           <div className="reconnecting-overlay">
             Reconnecting…
           </div>
-        )}
+        )} 
+        */}       
+        
     <>
       <ResizableLayout
         sidebar={
