@@ -28,15 +28,20 @@
 .file-actions-toolbar .import-actions,
 .file-actions-toolbar .export-actions {
   display: flex;
+  flex-wrap:wrap;
   gap: 8px;
-  align-items: center;
+  width:100%;
 }
 
 .file-actions-toolbar button {
+  flex: 1;
+  min-width: 120px;
+  justify-content: center;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 4px;
   border: 1px solid var(--btn-border, #555);
   background: var(--btn-bg, #3a3d41);
@@ -73,6 +78,7 @@
 
 .file-actions-toolbar .icon {
   font-size: 14px;
+  flex-shrink:0;
 }
 
 /* Light mode adjustments */
