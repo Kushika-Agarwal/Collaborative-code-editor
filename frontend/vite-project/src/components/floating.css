@@ -1,0 +1,83 @@
+
+/* Floating Button */
+.floating-button {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
+  width: 60px;
+  height: 60px;
+  transition: all 0.5s ease;
+  background: linear-gradient(to right, #ec4899, #8b5cf6, #3b82f6); /* pink → purple → blue */
+  z-index: 9999;
+}
+
+.floating-button:hover {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899);
+  box-shadow: 0px 6px 16px rgba(139, 92, 246, 0.7);
+}
+
+/* Hover Tooltip */
+.tooltip {
+  position: absolute;
+  bottom: 70px;
+  right: 50%;
+  transform: translateX(50%);
+  background-color: #ec4899;
+  color: white;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Popup Chatbot */
+.chatbot-container {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 320px;
+  height: 384px;
+  background: white;
+  box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  z-index: 9998;
+}
+
+/* Header */
+.chatbot-header {
+  background-color: #9742d0; /* blue-700 */
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-top-left-radius: 17px;
+  border-top-right-radius: 16px;
+  font-size: 17px;
+  font-weight: 1500;
+}
+
+/* Close Button */
+.close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444; /* red-500 */
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.close-button:hover {
+  background: #f87171; /* red-400 */
+}
