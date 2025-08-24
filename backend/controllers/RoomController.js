@@ -154,9 +154,9 @@ class RoomController {
       return { success: false, error: error.message };
     }
   }
-  constructor(io) {
-    this.io = io; // Store io instance for broadcasting
-  }
+  // constructor(io) {
+  //   this.io = io; // Store io instance for broadcasting
+  // }
   
   // Handle remote cursor movement
   handleCursorMove(socket, { roomId, filename, position, userId, userName }) {

@@ -3,7 +3,10 @@ import http from "http";
 import { Server } from "socket.io";
 import path, { dirname, join } from "path";
 import { fileURLToPath } from "url";
-
+import cors from "cors";
+import dotenv from "dotenv"; // Import dotenv to load environment variables
+import { serverConfig, staticConfig } from './config/server.js'; 
+dotenv.config({ path: './.env' });
 const app = express();
 const server = http.createServer(app);
 
@@ -12,6 +15,13 @@ const io = new Server(server, {
     origin: "*",
   },
 });
+
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || "*", // Allow requests from the specified origin
+  methods: ["GET", "POST"],
+  credentials: true
+}));
 
 const rooms = new Map();
 io.on("connection", (socket) => {
