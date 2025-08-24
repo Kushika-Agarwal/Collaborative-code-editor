@@ -25,7 +25,7 @@
   --accent-hover: #793be4;
   --video-bg: #6725d9;
   --placeholder-bg: #ceb3fc;
-  --label-color: #555;
+  --label-color: #f5f5f5;
   --shadow-color: rgba(0, 0, 0, 0.2);
   --mic-bg: #ddd;
   --mic-gradient: linear-gradient(90deg, #4a90e2 0%, #50e3c2 100%);
@@ -139,4 +139,39 @@
   background: var(--mic-gradient);
   border-radius: 4px;
   transition: width 0.1s linear;
+}
+
+/* New styles for improved microphone UI */
+.initializing-indicator {
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+  opacity: 0.8;
+}
+
+.media-error {
+  background: #ff4757;
+  color: white;
+  padding: 0.4rem;
+  margin: 0.5rem 0;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.video-call-controls button.active {
+  background: #00b894;
+}
+
+.video-call-controls button.active:hover {
+  background: #00a085;
+}
+
+.video-call-controls button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.video-call-controls button:disabled:hover {
+  background: #666;
 }

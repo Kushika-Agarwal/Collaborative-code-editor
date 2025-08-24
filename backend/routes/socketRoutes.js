@@ -73,87 +73,6 @@ class SocketRoutes {
         }
       });
 
-      // Keyboard shortcuts backend events
-      socket.on("saveFile", (data) => {
-        const result = this.roomController.handleSaveFile(socket, data);
-        if (!result.success) {
-          console.error("Save file error:", result.error);
-          socket.emit("error", { type: "saveFile", message: result.error });
-        }
-      });
-
-      socket.on("formatDocument", (data) => {
-        const result = this.roomController.handleFormatDocument(socket, data);
-        if (!result.success) {
-          console.error("Format document error:", result.error);
-          socket.emit("error", { type: "formatDocument", message: result.error });
-        }
-      });
-
-      socket.on("duplicateLine", (data) => {
-        const result = this.roomController.handleDuplicateLine(socket, data);
-        if (!result.success) {
-          console.error("Duplicate line error:", result.error);
-          socket.emit("error", { type: "duplicateLine", message: result.error });
-        }
-      });
-
-      socket.on("deleteLine", (data) => {
-        const result = this.roomController.handleDeleteLine(socket, data);
-        if (!result.success) {
-          console.error("Delete line error:", result.error);
-          socket.emit("error", { type: "deleteLine", message: result.error });
-        }
-      });
-
-      socket.on("toggleComment", (data) => {
-        const result = this.roomController.handleToggleComment(socket, data);
-        if (!result.success) {
-          console.error("Toggle comment error:", result.error);
-          socket.emit("error", { type: "toggleComment", message: result.error });
-        }
-      });
-
-      socket.on("moveLine", (data) => {
-        const result = this.roomController.handleMoveLine(socket, data);
-        if (!result.success) {
-          console.error("Move line error:", result.error);
-          socket.emit("error", { type: "moveLine", message: result.error });
-        }
-      });
-
-      socket.on("selectAllOccurrences", (data) => {
-        const result = this.roomController.handleSelectAllOccurrences(socket, data);
-        if (!result.success) {
-          console.error("Select all occurrences error:", result.error);
-          socket.emit("error", { type: "selectAllOccurrences", message: result.error });
-        }
-      });
-
-      socket.on("quickLanguageSwitch", (data) => {
-        const result = this.roomController.handleQuickLanguageSwitch(socket, data);
-        if (!result.success) {
-          console.error("Quick language switch error:", result.error);
-          socket.emit("error", { type: "quickLanguageSwitch", message: result.error });
-        }
-      });
-
-      socket.on("toggleMinimap", (data) => {
-        const result = this.roomController.handleToggleMinimap(socket, data);
-        if (!result.success) {
-          console.error("Toggle minimap error:", result.error);
-          socket.emit("error", { type: "toggleMinimap", message: result.error });
-        }
-      });
-
-      socket.on("quickAction", (data) => {
-        const result = this.roomController.handleQuickAction(socket, data);
-        if (!result.success) {
-          console.error("Quick action error:", result.error);
-          socket.emit("error", { type: "quickAction", message: result.error });
-        }
-      });
-
       // Legacy filename change event
       socket.on("filenameChange", (data) => {
         const result = this.roomController.handleFilenameChange(socket, data);
@@ -167,21 +86,6 @@ class SocketRoutes {
         const result = this.roomController.handleJoinRoom(socket, data);
         if (!result.success) {
           console.error("Join room error:", result.error);
-        }
-      });
-
-      // Cursor presence events
-      socket.on("cursorMove", (data) => {
-        const result = this.roomController.handleCursorMove(socket, data);
-        if (!result.success) {
-          console.error("Cursor move error:", result.error);
-        }
-      });
-
-      socket.on("clearCursor", (data) => {
-        const result = this.roomController.handleCursorClear(socket, data);
-        if (!result.success) {
-          console.error("Clear cursor error:", result.error);
         }
       });
 

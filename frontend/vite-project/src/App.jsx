@@ -24,7 +24,6 @@ import {
 } from "./utils/fileTypeDetection";
 
 import BackToTop from "./components/ui/BackToTop";
-import KeyboardShortcuts from "./components/KeyboardShortcuts";
 
 import * as monaco from "monaco-editor";
 import Chatbot from "./components/chatBot";
@@ -33,7 +32,9 @@ import FloatingChatbot from "./components/floating";
 const App = () => {
   const [joined, setJoined] = useState(false);
   const [roomId, setRoomId] = useState("");
-  const [userName, setUserName] = useState("");
+
+  const [userName, setUserName] = useState(() => localStorage.getItem("userName") || "");
+  
 
   // File management state
   const [files, setFiles] = useState([]);
@@ -75,6 +76,7 @@ const App = () => {
   const decorationsRef = useRef({}); // userId -> decoration ids
   const widgetsRef = useRef({}); // userId -> content widget
   const colorCacheRef = useRef({}); // userId -> color
+
 
   // New state and ref for connection status
   const [isConnected, setIsConnected] = useState(socket.connected);
@@ -139,6 +141,26 @@ const App = () => {
     };
   }, [toast]);
 
+
+  // Enhancement:
+  //  Show Active File in Browser Tab Title
+  useEffect(() => {
+    if (joined) {
+      if (activeFile) {
+        document.title = `${activeFile} — CodeRoom`;
+      } else {
+        document.title = `CodeRoom (${roomId})`;
+      }
+    } else {
+      document.title = 'Real-time Collaborative Code Editor';
+    }
+
+    // Optional: Cleanup function to reset the title when the user leaves
+    return () => {
+      document.title = 'Real-time Collaborative Code Editor';
+    };
+  }, [joined, activeFile, roomId]);
+
   const toggleTheme = () => {
     if (theme === "dark") {
       document.body.classList.add("light-mode");
@@ -155,6 +177,7 @@ const App = () => {
   const getUserColor = (userId) => {
     if (colorCacheRef.current[userId]) return colorCacheRef.current[userId];
     const palette = [
+
       "#e74c3c",
       "#3498db",
       "#2ecc71",
@@ -162,6 +185,10 @@ const App = () => {
       "#e67e22",
       "#1abc9c",
       "#f1c40f",
+
+      '#E57373', '#81C784', '#64B5F6', '#FFD54F', '#BA68C8',
+      '#4DB6AC', '#F06292', '#7986CB', '#A1887F', '#90A4AE'
+
     ];
     // Simple hash
     let hash = 0;
@@ -361,8 +388,10 @@ const App = () => {
       setCode(file.code);
       setLanguage(file.language);
       setFilename(filename);
+
       // Clear remote cursors when file changes
       clearAllRemoteCursors();
+
 
       // Update files state to reflect active status
       setFiles((prev) =>
@@ -450,6 +479,7 @@ const App = () => {
         alert(`Error switching file: ${error.message}`);
     });
 
+
     // Legacy filename change event for backward compatibility
     socket.on(
       "filenameChanged",
@@ -465,16 +495,18 @@ const App = () => {
       }
     );
 
-    // Cursor position handlers
-    const onCursorPosition = (payload) => {
-      renderRemoteCursor(payload);
-    };
 
-    const onCursorCleared = (payload) => {
-      if (payload && payload.userId) {
-        clearRemoteCursor(payload.userId);
+    // Cursor position events
+    const onCursorPosition = (payload) => {
+      if (payload.userId !== socket.id) {
+        renderRemoteCursor(payload);
       }
     };
+    
+    const onCursorCleared = (payload) => {
+      clearRemoteCursor(payload.userId);
+    };
+
 
     // Register cursor event listeners
     socket.on("cursorPosition", onCursorPosition);
@@ -483,17 +515,20 @@ const App = () => {
     return () => {
       socket.off("cursorPosition", onCursorPosition);
       socket.off("cursorCleared", onCursorCleared);
+
       socket.off();
     };
   }, [roomId, userName, activeFile]);
 
   useEffect(() => {
+
     const handleBeforeUnload = () => {
       try {
         socket.emit("clearCursor", { roomId, userId: socket.id });
       } catch {}
       socket.emit("leaveRoom");
     };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
@@ -501,6 +536,7 @@ const App = () => {
   const joinRoom = () => {
     if (!roomId || !userName)
       return alert("Please enter both Room Id and Your Name");
+    localStorage.setItem("userName", userName); // <-- Add this line
     socket.emit("join_room", { roomId, userName });
     setJoined(true);
 
@@ -588,17 +624,22 @@ const App = () => {
   };
 
   const leaveRoom = () => {
-    socket.emit("clearCursor", { roomId, userId: socket.id });
     socket.emit("leaveRoom");
     setJoined(false);
     setRoomId("");
     setUserName("");
+
     setCode(
       "// Welcome to the collaborative code editor\n// Start coding here..."
     );
     setCurrentFileContent(
       "// Welcome to the collaborative code editor\n// Start coding here..."
     );
+
+    localStorage.removeItem("userName");
+    setCode("// Welcome to the collaborative code editor\n// Start coding here...");
+    setCurrentFileContent("// Welcome to the collaborative code editor\n// Start coding here...");
+
     setUsers([]);
     setTyping("");
     setLanguage("javascript");
@@ -609,7 +650,6 @@ const App = () => {
     setShowAllLanguages(false);
     setChatMessages([]);
     setChatInput("");
-    clearAllRemoteCursors();
     isInitialConnect.current = true; // Reset for the next connection
   };
 
@@ -643,7 +683,7 @@ const App = () => {
         // Fallback to legacy method
         socket.emit("codeChange", { roomId, code: newCode });
       }
-    }, 500);
+    }, 250);
 
     setCodeChangeTimeout(newTimeout);
 
@@ -746,9 +786,9 @@ const App = () => {
     }
   };
 
-  // Enhanced keyboard shortcuts system
   useEffect(() => {
     const handleKeyDown = (e) => {
+
       // Don't trigger shortcuts when typing in input fields
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
         return;
@@ -1267,13 +1307,23 @@ const App = () => {
             setShowAllLanguages(false);
           }
           break;
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
+          e.preventDefault();
+          handleRedo();
+        }
+
       }
     };
-
     if (joined) {
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
+
   }, [
     joined,
     handleUndo,
@@ -1289,7 +1339,9 @@ const App = () => {
     showShortcutsHelp,
     toggleTheme,
     createCheckpoint,
-  ]);
+
+  }, [joined, handleUndo, handleRedo]);
+
 
   const sendChatMessage = (e) => {
     e.preventDefault();
@@ -1720,6 +1772,7 @@ const App = () => {
       console.log("[DEBUG] Monaco completion provider API not available");
     }
 
+
     // Save editor instance for cursor presence
     editorRef.current = editor;
 
@@ -1744,11 +1797,13 @@ const App = () => {
     editor.onDidDispose(() => {
       cursorPosDisposable.dispose();
     });
+
   };
 
   const handleJoinFromLanding = (newRoomId, newUserName) => {
     setRoomId(newRoomId);
     setUserName(newUserName);
+    localStorage.setItem("userName", newUserName);
     socket.emit("join_room", { roomId: newRoomId, userName: newUserName });
     setJoined(true);
 
@@ -1775,6 +1830,7 @@ const App = () => {
         {!isConnected && (
           <div className="reconnecting-overlay">Reconnecting…</div>
         )}
+
         <>
           <ResizableLayout
             sidebar={
@@ -1819,6 +1875,57 @@ const App = () => {
                   onFileRename={handleFileRename}
                   onFileSwitch={handleFileSwitch}
                   userName={userName}
+    <>
+      <ResizableLayout
+        sidebar={
+          <div className="sidebar">
+            <button onClick={toggleTheme} className="theme-toggle-btn">
+              {theme === "light" ? "☀️ Light Mode" : "🌙 Dark Mode"}
+            </button>
+            <div className="room-info">
+              <h2>Code Room: {roomId}</h2>
+              <button 
+                className="copy-room-id-btn"
+                onClick={copyRoomId}
+                title="Copy Room ID to clipboard"
+              >
+                <span className="copy-icon">📋</span>
+                <span className="copy-text">Copy ID</span>
+              </button>
+            </div>
+            <h3>
+              Users in Room: <span style={{ fontWeight: "bold", color: "#2563eb" }}>{users.length}</span>
+            </h3>
+            <ul>
+              {users.map((user, index) => (
+                <li key={index}>{user.slice(0, 8)}</li>
+              ))}
+            </ul>
+            <p className="typing-indicator">{typing}</p>
+            
+            {/* File Explorer Component */}
+            <FileExplorer
+              files={files}
+              activeFile={activeFile}
+              onFileCreate={handleFileCreate}
+              onFileDelete={handleFileDelete}
+              onFileRename={handleFileRename}
+              onFileSwitch={handleFileSwitch}
+              userName={userName}
+            />
+            
+            <div className="file-controls">
+              <h3>Current File Settings</h3>
+              <div className="filename-input-group">
+                <label htmlFor="filename">Active File:</label>
+                <input
+                  id="filename"
+                  type="text"
+                  className="filename-input"
+                  value={pendingFilename || filename}
+                  onChange={handleFilenameChange}
+                  placeholder="e.g., main.js, script.py"
+
                 />
 
                 <div className="file-controls">
@@ -1989,6 +2096,7 @@ const App = () => {
                   joined={joined}
                 />
               </div>
+
             }
             chatPanel={
               <div className="chat-panel-content">
@@ -2019,6 +2127,63 @@ const App = () => {
                     Send
                   </button>
                 </form>
+
+              <button
+                className="version-btn history-btn"
+                onClick={() => setShowVersionHistory(true)}
+                title="View version history"
+              >
+                History
+              </button>
+              <button
+                className={`version-btn checkpoint-btn ${
+                  isCreatingCheckpoint ? "loading" : ""
+                }`}
+                onClick={createCheckpoint}
+                disabled={isCreatingCheckpoint}
+                title="Create checkpoint"
+              >
+                {isCreatingCheckpoint ? "Creating..." : "Checkpoint"}
+              </button>
+            </div>
+          </div>
+        }
+        editor={
+          <div className="editor-wrapper">
+            <div className="editor-header">
+              <span className="current-file-indicator">
+                📄 {activeFile || filename} 
+                {activeFile && (
+                  <span className="file-language-badge">
+                    {getLanguageDisplayName(currentFileLanguage)}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div style={{ position: "relative", height: "calc(100% - 40px)" }}>
+            
+            {/* Changed from defaultLanguage to language */}
+             {/* Defaultlanguage prop only sets the language when the editor first loads and doesn't update it afterward. */}
+            <Editor
+              height="100%"
+              language={currentFileLanguage} 
+              value={currentFileContent || code} 
+              onChange={handleChange}
+              onMount={handleEditorOnMount}
+              theme={theme === "dark" ? "vs-dark" : "vs-light"}
+              options={{
+                minimap:{ enabled: false },
+                fontSize: 14,
+              }}
+            />
+            {!(currentFileContent || code) && (
+              <div
+                className={`absolute top-0 left-[74px] text-sm pointer-events-none ${
+                  theme === "dark" ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
+                start typing here...
+
               </div>
             }
             onChatDetach={handleChatDetach}
@@ -2044,23 +2209,68 @@ const App = () => {
               sendChatMessage={sendChatMessage}
               onClose={() => setIsChatDetached(false)}
             />
-          )}
 
-          {/* Version History Modal */}
-          <VersionHistory
-            socket={socket}
-            roomId={roomId}
-            isOpen={showVersionHistory}
-            onClose={() => setShowVersionHistory(false)}
-          />
+          </div>
+        }
+        chatPanel={
+          <div className="chat-panel-content">
+            <div className="chat-messages" ref={messagesEndRef} style={{ overflowY: "auto", maxHeight: "100%" }}>
+              {chatMessages.map((msg, idx) => (
+                <div key={idx} className="chat-message">
+                  <span className="chat-user">{msg.userName.slice(0, 8)}:</span>{" "}
+                  {msg.message}
+                </div>
+              ))}
+            </div>
+            <form className="chat-input-form" onSubmit={sendChatMessage}>
+              <input
+                className="chat-input"
+                type="text"
+                placeholder="Type a message..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                maxLength={200}
+              />
+              <button type="submit" className="chat-send-btn">
+                Send
+              </button>
+            </form>
+          </div>
+        }
+        onChatDetach={handleChatDetach}
+        isChatDetached={isChatDetached}
+        onChatMinimize={handleChatMinimize}
+        isChatMinimized={isChatMinimized}
+        chatMessages={chatMessages}
+        chatInput={chatInput}
+        setChatInput={setChatInput}
+        sendChatMessage={sendChatMessage}
+        socket={socket}
+        roomId={roomId}
+        userName={userName}
+      />
+      
+      {/* Detached Chat Window */}
+      {isChatDetached && (
+        <ChatWindow
+          chatMessages={chatMessages}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          sendChatMessage={sendChatMessage}
+          onClose={() => setIsChatDetached(false)}
+        />
+      )}
 
-          {/* Keyboard Shortcuts Help Modal */}
-          <KeyboardShortcuts
-            isOpen={showShortcutsHelp}
-            onClose={() => setShowShortcutsHelp(false)}
-          />
-        </>
-      </TooltipProvider>
+      {/* Version History Modal */}
+      <VersionHistory
+        socket={socket}
+        roomId={roomId}
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+      />
+    </>
+          </TooltipProvider>
+
     </QueryClientProvider>
   );
 };

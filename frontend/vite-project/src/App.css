@@ -56,19 +56,24 @@ body {
 
 /* ===== Remote cursor presence ===== */
 .remote-cursor-inline {
-  border-left: 2px solid #ff4081; /* default; overridden by overview ruler color */
+  border-left: 2px solid;
+  margin-left: -1px;
 }
 
 .remote-cursor-widget {
   color: #ffffff;
-  font-size: 10px;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 3px 10px;
+  border-radius: 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
   pointer-events: none;
   user-select: none;
-  transform: translateY(-8px);
+  transform: translateY(-1.2em);
+  white-space: nowrap;
+  font-weight: 500;
+  position: relative;
+  left: -2px; /* Small adjustment to center it better */
 }
 .join-form {
   background-color: var(--bg-color);

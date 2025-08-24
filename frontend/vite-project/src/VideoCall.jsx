@@ -11,36 +11,163 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const panelRef = useRef();
-  // const peersRef = useRef([]);
   const [micVolume, setMicVolume] = useState(0); // 0 to 1
+  const [mediaError, setMediaError] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const peerConnectionsRef = useRef({});
 
   // Helper: update peer state
   // const updatePeerState = (peerId, updates) => {
   //   setPeers((prev) => prev.map(p => p.peerId === peerId ? { ...p, ...updates } : p));
   // };
 
-  // Get media stream
-  const getMedia = useCallback(async () => {
+  // Get media stream with proper error handling
+  const getMedia = useCallback(async (videoEnabled = cameraOn, audioEnabled = micOn) => {
     try {
+      // Stop existing tracks before getting new stream
+      if (myStream) {
+        myStream.getTracks().forEach(track => track.stop());
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: cameraOn,
-        audio: micOn,
+        video: videoEnabled,
+        audio: audioEnabled,
       });
       setMyStream(stream);
       return stream;
     } catch (err) {
-      console.log(err);
+      console.error('Error accessing media devices:', err);
       setMyStream(null);
       return null;
     }
-  }, [cameraOn, micOn]);
+  }, [cameraOn, micOn, myStream]);
 
-  // Toggle camera/mic
+  // Toggle camera with lazy media access
   const toggleCamera = async () => {
-    setCameraOn((prev) => !prev);
+    const newCameraState = !cameraOn;
+    
+    try {
+      setIsInitializing(true);
+      setMediaError(null);
+      
+      if (newCameraState) {
+        // Turning camera ON
+        if (!myStream) {
+          // First time - request permission
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: micOn
+          });
+          setMyStream(stream);
+          
+          // Update all peer connections with new stream
+          Object.values(peerConnectionsRef.current).forEach(peer => {
+            if (peer && peer.replaceTrack) {
+              const videoTrack = stream.getVideoTracks()[0];
+              if (videoTrack) {
+                peer.replaceTrack(null, videoTrack, stream);
+              }
+            }
+          });
+        } else {
+          // Stream exists - enable video track
+          const videoTrack = myStream.getVideoTracks()[0];
+          if (videoTrack) {
+            videoTrack.enabled = true;
+          } else {
+            // No video track - add one
+            const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const newVideoTrack = videoStream.getVideoTracks()[0];
+            if (newVideoTrack) {
+              myStream.addTrack(newVideoTrack);
+              setMyStream(myStream);
+            }
+          }
+        }
+      } else {
+        // Turning camera OFF
+        if (myStream) {
+          const videoTrack = myStream.getVideoTracks()[0];
+          if (videoTrack) {
+            videoTrack.enabled = false;
+          }
+        }
+      }
+      
+      setCameraOn(newCameraState);
+      socket.emit("toggle-camera");
+      
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setMediaError('Camera access denied or unavailable');
+      setCameraOn(false);
+    } finally {
+      setIsInitializing(false);
+    }
   };
+
+  // Toggle microphone with lazy media access
   const toggleMic = async () => {
-    setMicOn((prev) => !prev);
+    const newMicState = !micOn;
+    
+    try {
+      setIsInitializing(true);
+      setMediaError(null);
+      
+      if (newMicState) {
+        // Turning microphone ON
+        if (!myStream) {
+          // First time - request permission
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: cameraOn,
+            audio: true
+          });
+          setMyStream(stream);
+          
+          // Update all peer connections with new stream
+          Object.values(peerConnectionsRef.current).forEach(peer => {
+            if (peer && peer.replaceTrack) {
+              const audioTrack = stream.getAudioTracks()[0];
+              if (audioTrack) {
+                peer.replaceTrack(null, audioTrack, stream);
+              }
+            }
+          });
+        } else {
+          // Stream exists - enable audio track
+          const audioTrack = myStream.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack.enabled = true;
+          } else {
+            // No audio track - add one
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const newAudioTrack = audioStream.getAudioTracks()[0];
+            if (newAudioTrack) {
+              myStream.addTrack(newAudioTrack);
+              setMyStream(myStream);
+            }
+          }
+        }
+      } else {
+        // Turning microphone OFF
+        if (myStream) {
+          const audioTrack = myStream.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack.enabled = false;
+          }
+        }
+      }
+      
+      setMicOn(newMicState);
+      socket.emit("toggle-microphone");
+      
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      setMediaError('Microphone access denied or unavailable');
+      setMicOn(false);
+    } finally {
+      setIsInitializing(false);
+    }
   };
 
   // Draggable logic
@@ -87,17 +214,13 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
     let cleanup = false;
     let localStream = null;
     let myPeerId = socket.id;
-    let peerConnections = {};
+    
+    setMediaError(null);
 
     // Join call room
     socket.emit("join-call", { roomId, userName });
 
-    // Get local media
-    getMedia().then((stream) => {
-      if (cleanup) return;
-      localStream = stream;
-      setMyStream(stream);
-    });
+    // Don't request media access automatically - wait for user to click buttons
 
     // Handle new user joining
     socket.on("user-joined-call", ({ userName: remoteName, socketId }) => {
@@ -105,7 +228,7 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
       const peer = new SimplePeer({
         initiator: true,
         trickle: false,
-        stream: myStream,
+        stream: myStream, // Use current stream (may be null initially)
       });
       peer.on("signal", (signal) => {
         socket.emit("signal", { roomId, signal, to: socketId });
@@ -123,19 +246,19 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
           },
         ]);
       });
-      peerConnections[socketId] = peer;
+      peerConnectionsRef.current[socketId] = peer;
     });
 
     // Handle receiving signal
     socket.on("signal", ({ signal, from }) => {
-      let peer = peerConnections[from];
+      let peer = peerConnectionsRef.current[from];
       if (!peer) {
         peer = new SimplePeer({
           initiator: false,
           trickle: false,
-          stream: myStream,
+          stream: myStream, // Use current stream (may be null initially)
         });
-        peerConnections[from] = peer;
+        peerConnectionsRef.current[from] = peer;
         peer.on("signal", (signal) => {
           socket.emit("signal", { roomId, signal, to: from });
         });
@@ -159,9 +282,9 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
     // Handle user leaving
     socket.on("user-left-call", ({ socketId }) => {
       setPeers((prev) => prev.filter((p) => p.peerId !== socketId));
-      if (peerConnections[socketId]) {
-        peerConnections[socketId].destroy();
-        delete peerConnections[socketId];
+      if (peerConnectionsRef.current[socketId]) {
+        peerConnectionsRef.current[socketId].destroy();
+        delete peerConnectionsRef.current[socketId];
       }
     });
 
@@ -169,42 +292,116 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
     return () => {
       cleanup = true;
       socket.emit("leave-call", { roomId });
-      Object.values(peerConnections).forEach((peer) => peer.destroy());
+      Object.values(peerConnectionsRef.current).forEach((peer) => peer.destroy());
+      peerConnectionsRef.current = {};
       setPeers([]);
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
+      if (myStream) {
+        myStream.getTracks().forEach((track) => track.stop());
       }
     };
     // eslint-disable-next-line
-  }, [joined, roomId, userName, cameraOn, micOn]);
+  }, [joined, roomId, userName]);
 
-  // Audio analysis for local mic
+  // Update peer connections when stream changes
   useEffect(() => {
-    let audioContext, analyser, dataArray, source;
-    if (micOn && myStream) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioContext.createAnalyser();
-      source = audioContext.createMediaStreamSource(myStream);
-      source.connect(analyser);
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const tick = () => {
-        analyser.getByteTimeDomainData(dataArray);
-        // Calculate RMS (root mean square) for volume
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          let val = (dataArray[i] - 128) / 128;
-          sum += val * val;
+    if (myStream) {
+      // Update all existing peer connections with the new stream
+      Object.values(peerConnectionsRef.current).forEach(peer => {
+        if (peer && peer.replaceTrack) {
+          const videoTrack = myStream.getVideoTracks()[0];
+          const audioTrack = myStream.getAudioTracks()[0];
+          
+          if (videoTrack) {
+            peer.replaceTrack(null, videoTrack, myStream);
+          }
+          if (audioTrack) {
+            peer.replaceTrack(null, audioTrack, myStream);
+          }
         }
-        setMicVolume(Math.sqrt(sum / dataArray.length));
-        if (micOn) requestAnimationFrame(tick);
-      };
-      tick();
+      });
+    }
+  }, [myStream]);
+
+  // Handle remote microphone toggle events
+  useEffect(() => {
+    const handleMicrophoneToggled = ({ socketId, micOn: remoteMicOn }) => {
+      setPeers(prev => prev.map(peer => 
+        peer.peerId === socketId 
+          ? { ...peer, micOn: remoteMicOn }
+          : peer
+      ));
+    };
+
+    const handleCameraToggled = ({ socketId, cameraOn: remoteCameraOn }) => {
+      setPeers(prev => prev.map(peer => 
+        peer.peerId === socketId 
+          ? { ...peer, cameraOn: remoteCameraOn }
+          : peer
+      ));
+    };
+
+    socket.on("microphone-toggled", handleMicrophoneToggled);
+    socket.on("camera-toggled", handleCameraToggled);
+
+    return () => {
+      socket.off("microphone-toggled", handleMicrophoneToggled);
+      socket.off("camera-toggled", handleCameraToggled);
+    };
+  }, [socket]);
+
+  // Audio analysis for local mic with improved error handling
+  useEffect(() => {
+    let audioContext, analyser, dataArray, source, animationId;
+    
+    if (micOn && myStream) {
+      try {
+        const audioTrack = myStream.getAudioTracks()[0];
+        if (audioTrack && audioTrack.enabled) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          source = audioContext.createMediaStreamSource(myStream);
+          source.connect(analyser);
+          analyser.fftSize = 256;
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          
+          const tick = () => {
+            if (!micOn || !audioTrack.enabled) {
+              setMicVolume(0);
+              return;
+            }
+            
+            try {
+              analyser.getByteTimeDomainData(dataArray);
+              // Calculate RMS (root mean square) for volume
+              let sum = 0;
+              for (let i = 0; i < dataArray.length; i++) {
+                let val = (dataArray[i] - 128) / 128;
+                sum += val * val;
+              }
+              setMicVolume(Math.sqrt(sum / dataArray.length));
+              animationId = requestAnimationFrame(tick);
+            } catch (err) {
+              console.error('Error analyzing audio:', err);
+              setMicVolume(0);
+            }
+          };
+          tick();
+        } else {
+          setMicVolume(0);
+        }
+      } catch (err) {
+        console.error('Error setting up audio analysis:', err);
+        setMicVolume(0);
+      }
     } else {
       setMicVolume(0);
     }
+    
     return () => {
-      if (audioContext) audioContext.close();
+      if (animationId) cancelAnimationFrame(animationId);
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(err => console.error('Error closing audio context:', err));
+      }
     };
   }, [micOn, myStream]);
 
@@ -256,12 +453,28 @@ const VideoCall = ({ socket, roomId, userName, joined }) => {
     >
       <div className="video-call-header" onMouseDown={onMouseDown}>
         Video Call
+        {isInitializing && <span className="initializing-indicator">Initializing...</span>}
       </div>
+      {mediaError && (
+        <div className="media-error">
+          ⚠️ {mediaError}
+        </div>
+      )}
       <div className="video-call-controls">
-        <button onClick={toggleCamera}>
-          {cameraOn ? "Turn Camera Off" : "Turn Camera On"}
+        <button 
+          onClick={toggleCamera}
+          disabled={isInitializing}
+          className={cameraOn ? "active" : ""}
+        >
+          {cameraOn ? "📷 Turn Off Camera" : "📷 Turn On Camera"}
         </button>
-        <button onClick={toggleMic}>{micOn ? "Mute" : "Unmute"}</button>
+        <button 
+          onClick={toggleMic}
+          disabled={isInitializing}
+          className={micOn ? "active" : ""}
+        >
+          {micOn ? "🔇 Turn Off Mic" : "🎤 Turn On Mic"}
+        </button>
       </div>
       <div className="video-call-videos">
         {renderVideo(myStream, userName || "Me", true, cameraOn, micOn)}

@@ -3,10 +3,6 @@ import roomService from '../services/RoomService.js';
 import userService from '../services/UserService.js';
 
 class RoomController {
-  constructor(io) {
-    this.io = io;
-  }
-
   // File management methods
   
   // Handle creating a new file
@@ -159,16 +155,19 @@ class RoomController {
   // }
   
   // Handle remote cursor movement
-  handleCursorMove(socket, { roomId, filename, position, userId, userName }) {
+  handleCursorMove(socket, { roomId, filename, position }) {
     try {
-      // Broadcast to all users in the room except sender
-      socket.to(roomId).emit("cursorPosition", {
-        roomId,
-        filename,
-        position,
-        userId,
-        userName,
-      });
+      const user = userService.getUser(socket.id);
+      if (user) {
+        // Broadcast to all users in the room except sender
+        socket.to(roomId).emit("cursorPosition", {
+          roomId,
+          filename,
+          position,
+          userId: socket.id,
+          userName: user.userName,
+        });
+      }
       return { success: true };
     } catch (error) {
       console.error('Error in handleCursorMove:', error);
@@ -332,8 +331,6 @@ class RoomController {
         if (roomId) {
           const { users } = roomService.removeUserFromRoom(roomId, userName);
           socket.to(roomId).emit("userJoined", users);
-          // Inform clients to clear this user's cursor
-          socket.to(roomId).emit("cursorCleared", { userId: socket.id });
         }
 
         userService.removeUser(socket.id);
@@ -365,204 +362,6 @@ class RoomController {
       return null;
     }
   }
-
-  // Keyboard shortcuts backend handlers
-  
-  // Handle file save operation
-  handleSaveFile(socket, { roomId, filename, code, savedBy }) {
-    try {
-      const result = roomService.saveFileInRoom(roomId, filename, code);
-      if (result.success) {
-        // Broadcast save notification to all users in the room
-        this.io.in(roomId).emit("fileSaved", { 
-          filename,
-          savedBy,
-          timestamp: new Date().toISOString()
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleSaveFile:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle document formatting
-  handleFormatDocument(socket, { roomId, filename, formattedCode, formattedBy }) {
-    try {
-      const result = roomService.updateFileCode(roomId, filename, formattedCode);
-      if (result.success) {
-        // Broadcast formatted code to all users in the room
-        this.io.in(roomId).emit("documentFormatted", { 
-          filename,
-          code: formattedCode,
-          formattedBy
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleFormatDocument:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle line duplication
-  handleDuplicateLine(socket, { roomId, filename, updatedCode, duplicatedBy, lineNumber }) {
-    try {
-      const result = roomService.updateFileCode(roomId, filename, updatedCode);
-      if (result.success) {
-        // Broadcast line duplication to all users in the room
-        this.io.in(roomId).emit("lineDuplicated", { 
-          filename,
-          code: updatedCode,
-          duplicatedBy,
-          lineNumber
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleDuplicateLine:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle line deletion
-  handleDeleteLine(socket, { roomId, filename, updatedCode, deletedBy, lineNumber }) {
-    try {
-      const result = roomService.updateFileCode(roomId, filename, updatedCode);
-      if (result.success) {
-        // Broadcast line deletion to all users in the room
-        this.io.in(roomId).emit("lineDeleted", { 
-          filename,
-          code: updatedCode,
-          deletedBy,
-          lineNumber
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleDeleteLine:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle comment toggle
-  handleToggleComment(socket, { roomId, filename, updatedCode, toggledBy, lineNumbers, commentType }) {
-    try {
-      const result = roomService.updateFileCode(roomId, filename, updatedCode);
-      if (result.success) {
-        // Broadcast comment toggle to all users in the room
-        this.io.in(roomId).emit("commentToggled", { 
-          filename,
-          code: updatedCode,
-          toggledBy,
-          lineNumbers,
-          commentType
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleToggleComment:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle line movement
-  handleMoveLine(socket, { roomId, filename, updatedCode, movedBy, fromLine, toLine, direction }) {
-    try {
-      const result = roomService.updateFileCode(roomId, filename, updatedCode);
-      if (result.success) {
-        // Broadcast line movement to all users in the room
-        this.io.in(roomId).emit("lineMoved", { 
-          filename,
-          code: updatedCode,
-          movedBy,
-          fromLine,
-          toLine,
-          direction
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleMoveLine:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle select all occurrences
-  handleSelectAllOccurrences(socket, { roomId, filename, selectedText, selectedBy, occurrenceCount }) {
-    try {
-      // Broadcast selection to all users in the room
-      this.io.in(roomId).emit("allOccurrencesSelected", { 
-        filename,
-        selectedText,
-        selectedBy,
-        occurrenceCount
-      });
-      return { success: true };
-    } catch (error) {
-      console.error('Error in handleSelectAllOccurrences:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle quick language switch
-  handleQuickLanguageSwitch(socket, { roomId, filename, newLanguage, switchedBy }) {
-    try {
-      const result = roomService.updateFileLanguage(roomId, filename, newLanguage);
-      if (result.success) {
-        // Broadcast language switch to all users in the room
-        this.io.in(roomId).emit("languageSwitched", { 
-          filename,
-          language: newLanguage,
-          switchedBy
-        });
-        return { success: true };
-      }
-      return result;
-    } catch (error) {
-      console.error('Error in handleQuickLanguageSwitch:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle minimap toggle
-  handleToggleMinimap(socket, { roomId, minimapEnabled, toggledBy }) {
-    try {
-      // Broadcast minimap toggle to all users in the room
-      this.io.in(roomId).emit("minimapToggled", { 
-        minimapEnabled,
-        toggledBy
-      });
-      return { success: true };
-    } catch (error) {
-      console.error('Error in handleToggleMinimap:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Handle quick actions
-  handleQuickAction(socket, { roomId, action, actionBy, filename, result }) {
-    try {
-      // Broadcast quick action to all users in the room
-      this.io.in(roomId).emit("quickActionPerformed", { 
-        action,
-        actionBy,
-        filename,
-        result
-      });
-      return { success: true };
-    } catch (error) {
-      console.error('Error in handleQuickAction:', error);
-      return { success: false, error: error.message };
-    }
-  }
 }
 
-export default RoomController; 
+export default RoomController;
