@@ -14,7 +14,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useToast } from "./hooks/use-toast";
-import NotFound from "./pages/not-found";
 import { 
   detectFileType, 
   getLanguageDisplayName, 
@@ -238,13 +237,17 @@ const App = () => {
     Object.keys(decorationsRef.current).forEach(clearRemoteCursor);
   };
 
+  // Main effect for handling all real-time socket events
+// Main effect for handling all real-time socket events
   useEffect(() => {
-    // User and room events
+    // --- User and Room Events ---
+    // A new user has joined (or left), so we update the list of participants.
     socket.on("userJoined", (users) => setUsers(users));
     socket.on("codeUpdated", (newCode) => {
       setCode(newCode);
       setCurrentFileContent(newCode);
     });
+    // Another user is typing in the editor.
     socket.on("userTyping", (user) => {
       setTyping(`${user.slice(0, 8)} is typing...`);
       setTimeout(() => setTyping(""), 3000);
@@ -256,8 +259,9 @@ const App = () => {
     socket.on("chatMessage", ({ userName, message }) =>
       setChatMessages((prev) => [...prev, { userName, message }])
     );
-    
-    // File management events
+
+    // --- File Management Events ---
+    // The entire file structure has changed (e.g., on initial join), so replace the local state.
     socket.on("filesUpdated", ({ files: newFiles, activeFile: newActiveFile }) => {
       setFiles(newFiles);
       setActiveFile(newActiveFile);
@@ -273,7 +277,8 @@ const App = () => {
         console.log('[DEBUG] File switched:', currentFile.filename, 'Detected language:', detectedLang);
       }
     });
-
+    
+    // A single new file was created by a user.
     socket.on("fileCreated", ({ file, createdBy }) => {
       setFiles(prev => [...prev, file]);
       setChatMessages((prev) => [...prev, { 
@@ -281,7 +286,8 @@ const App = () => {
         message: `File "${file.filename}" created by ${createdBy}` 
       }]);
     });
-
+    
+    // A file was deleted by a user.
     socket.on("fileDeleted", ({ filename, deletedBy, newActiveFile }) => {
       setFiles(prev => prev.filter(f => f.filename !== filename));
       
@@ -296,7 +302,8 @@ const App = () => {
         message: `File "${filename}" deleted by ${deletedBy}` 
       }]);
     });
-
+    
+    // A file was renamed. Update the filename in our local state.
     socket.on("fileRenamed", ({ oldFilename, newFilename, renamedBy }) => {
       setFiles(prev => prev.map(f => 
         f.filename === oldFilename 
@@ -314,7 +321,8 @@ const App = () => {
         message: `File renamed from "${oldFilename}" to "${newFilename}" by ${renamedBy}` 
       }]);
     });
-
+    
+    // A user switched to a different active file.
     socket.on("activeFileChanged", ({ filename, file, switchedBy }) => {
       setActiveFile(filename);
       setCurrentFileContent(file.code);
@@ -330,6 +338,7 @@ const App = () => {
       })));
     });
 
+    // The active file's code was updated by another user.
     socket.on("fileCodeUpdated", ({ filename, code: newCode }) => {
       if (filename === activeFile) {
         setCurrentFileContent(newCode);
@@ -343,7 +352,8 @@ const App = () => {
           : f
       ));
     });
-
+    
+    // The language for a file was changed.
     socket.on("fileLanguageUpdated", ({ filename, language: newLanguage }) => {
       if (filename === activeFile) {
         setCurrentFileLanguage(newLanguage);
@@ -358,8 +368,10 @@ const App = () => {
       ));
     });
 
-    // Version history events
+    // --- Version History Events ---
+    // The server has confirmed a new version was added (e.g., after an edit).
     socket.on("versionAdded", (data) => setUndoRedoState(data.undoRedoState));
+    // The code state was changed by an undo/redo action from another user.
     socket.on("codeReverted", (data) => {
       setCode(data.code);
       setLanguage(data.language);
@@ -413,8 +425,8 @@ const App = () => {
         { userName: "System", message: `Filename changed from "${oldFilename}" to "${newFilename}" by ${changedBy}` }
       ]);
     });
-
-    // Cursor position events
+    // --- Cursor Position Events ---
+    // Another user's cursor moved. We need to render it.
     const onCursorPosition = (payload) => {
       if (payload.userId !== socket.id) {
         renderRemoteCursor(payload);
@@ -425,10 +437,12 @@ const App = () => {
       clearRemoteCursor(payload.userId);
     };
 
+    // Register cursor event listeners
     socket.on('cursorPosition', onCursorPosition);
     socket.on('cursorCleared', onCursorCleared);
 
     return () => {
+      // Clean up all listeners when the component unmounts or dependencies change.
       socket.off();
     };
   }, [roomId, userName, activeFile]);
@@ -563,6 +577,7 @@ const App = () => {
       window.clearTimeout(codeChangeTimeout);
     }
 
+    // Debounce code changes to avoid flooding the server with events on every keystroke.
     const newTimeout = window.setTimeout(() => {
       // Use new file-specific code change event if active file exists
       if (activeFile) {
