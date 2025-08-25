@@ -65,6 +65,9 @@ const App = () => {
   const [isChatDetached, setIsChatDetached] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
 
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false);
+
+
   // New state and ref for connection status
   const [isConnected, setIsConnected] = useState(socket.connected);
   const isInitialConnect = useRef(true);
@@ -133,21 +136,21 @@ const App = () => {
   // Enhancement:
   //  Show Active File in Browser Tab Title
   useEffect(() => {
-    if (joined) {
-      if (activeFile) {
-        document.title = `${activeFile} — CodeRoom`;
-      } else {
-        document.title = `CodeRoom (${roomId})`;
-      }
+  let baseTitle = activeFile || filename || "Collaborative Editor";
+  if (joined) {
+    if (activeFile) {
+      baseTitle = `${activeFile} — CodeRoom`;
     } else {
-      document.title = 'Real-time Collaborative Code Editor';
+      baseTitle = `CodeRoom (${roomId})`;
     }
-
-    // Optional: Cleanup function to reset the title when the user leaves
-    return () => {
-      document.title = 'Real-time Collaborative Code Editor';
-    };
-  }, [joined, activeFile, roomId]);
+  } else {
+    baseTitle = 'Real-time Collaborative Code Editor';
+  }
+  document.title = hasUnsavedEdits ? `● ${baseTitle}` : baseTitle;
+  return () => {
+    document.title = 'Real-time Collaborative Code Editor';
+  };
+}, [hasUnsavedEdits, joined, activeFile, filename, roomId]);
 
   const toggleTheme = () => {
     if (theme === "dark") {
@@ -557,6 +560,7 @@ const App = () => {
 
     setCode(newCode);
     setCurrentFileContent(newCode);
+    setHasUnsavedEdits(true);
 
     // clear existing timeout if any
     if (codeChangeTimeout) {
@@ -571,7 +575,8 @@ const App = () => {
         // Fallback to legacy method
         socket.emit('codeChange', { roomId, code: newCode });
       }
-    }, 250);
+      setHasUnsavedEdits(false);
+    }, 500);
 
     setCodeChangeTimeout(newTimeout);
 
