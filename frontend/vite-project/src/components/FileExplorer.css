@@ -35,8 +35,7 @@
 .file-actions-toolbar button {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  padding: 2px 4px;
   border-radius: 4px;
   border: 1px solid var(--btn-border, #555);
   background: var(--btn-bg, #3a3d41);
