@@ -1004,6 +1004,11 @@ const App = () => {
             
             {/* Changed from defaultLanguage to language */}
              {/* Defaultlanguage prop only sets the language when the editor first loads and doesn't update it afterward. */}
+
+             {/* dded line numbers in the code editor
+              Displaying line numbers alongside 
+              the code will make collaboration and debugging easier. */}
+
             <Editor
               height="100%"
               language={currentFileLanguage} 
@@ -1014,6 +1019,7 @@ const App = () => {
               options={{
                 minimap:{ enabled: false },
                 fontSize: 14,
+                lineNumbers: "on",
               }}
             />
             {!(currentFileContent || code) && (
