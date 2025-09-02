@@ -25,7 +25,6 @@ import {
 import BackToTop from "./components/ui/BackToTop";
 
 import * as monaco from 'monaco-editor';
-import CppCompiler from "./components/CppCompiler";
 
 
 const App = () => {
@@ -853,17 +852,13 @@ const App = () => {
           <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-
-        {/* Show C++ compiler above the editor if file type is C++ */}
-        {currentFileLanguage === "cpp" && (
-          <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: "1rem" }}>
-            <CppCompiler code={currentFileContent} theme={theme} />
-
-        {
-     
+        {/* Reconnecting indicator
+        {!isConnected && (
+          <div className="reconnecting-overlay">
+            Reconnecting…
           </div>
-         
-        }       
+        )} 
+        */}       
         
     <>
       <ResizableLayout
