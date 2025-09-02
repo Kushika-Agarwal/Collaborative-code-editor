@@ -27,6 +27,7 @@ import BackToTop from "./components/ui/BackToTop";
 
 import * as monaco from 'monaco-editor';
 import CppCompiler from "./components/CppCompiler";
+import CSharpCompiler from "./components/CSharpCompiler";
 
 
 const App = () => {
@@ -837,6 +838,12 @@ const App = () => {
         {currentFileLanguage === "cpp" && (
           <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: "1rem" }}>
             <CppCompiler code={currentFileContent} theme={theme} />
+          </div>
+        )}
+        {/* Show C# compiler above the editor if file type is C# */}
+        {currentFileLanguage === "csharp" && (
+          <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: "1rem" }}>
+            <CSharpCompiler code={currentFileContent} theme={theme} />
           </div>
         )}
     <>
