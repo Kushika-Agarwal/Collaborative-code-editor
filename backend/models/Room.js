@@ -108,17 +108,16 @@ class Room {
   }
   
   // Get all files
-  getAllFiles() {
-    const fileList = [];
-    for (const [filename, fileData] of this.files) {
-      fileList.push({
-        filename,
-        ...fileData,
-        isActive: filename === this.activeFile
-      });
-    }
-    return fileList.sort((a, b) => a.filename.localeCompare(b.filename));
-  }
+   getAllFiles() {
+  return Array.from(this.files.entries())
+    .map(([filename, fileData]) => ({
+      filename,
+      ...fileData,
+      isActive: filename === this.activeFile
+    }))
+    .sort((a, b) => a.filename.localeCompare(b.filename));
+}
+
   
   // Update file content
   updateFileCode(filename, code) {
