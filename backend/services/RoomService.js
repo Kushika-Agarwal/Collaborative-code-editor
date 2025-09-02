@@ -78,9 +78,9 @@ class RoomService {
     }
     return null;
   }
-  // constructor() {
-  //   this.rooms = new Map(); // In-memory room storage
-  // }
+  constructor() {
+    this.rooms = new Map(); // In-memory room storage
+  }
 
   // Get or create a room
   getOrCreateRoom(roomId) {

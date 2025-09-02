@@ -2,12 +2,11 @@
 import express from 'express';
 import RoomController from '../controllers/RoomController.js';
 import VideoCallController from '../controllers/VideoCallController.js';
-import { GeminiAiService } from '../services/geminiAiService.js';
 
 // Create controller instances (io will be null for HTTP routes)
 const roomController = new RoomController(null);
 const videoCallController = new VideoCallController(null);
-const geminiService = new GeminiAiService();
+
 const router = express.Router();
 
 // Health check endpoint
@@ -62,23 +61,6 @@ router.get('/api/rooms', (req, res) => {
     res.json(rooms);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get rooms' });
-  }
-});
-
-router.post("/api/chatai", async (req, res) => {
-  try {
-    const { message, history = [] } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
-    const resp = await geminiService.chatWithGemini(message, history);
-    return res.json({ data: resp.data });
-  } catch (err) {
-    console.error("[chatBotRoute] error:", err.message || err);
-    return res.status(500).json({
-      error: "Failed to fetch response from Gemini AI",
-      details: (err.message || "").slice(0, 1000),
-    });
   }
 });
 
