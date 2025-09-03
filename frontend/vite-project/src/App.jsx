@@ -22,7 +22,6 @@ import {
 } from "./utils/fileTypeDetection";
 import BackToTop from "./components/ui/BackToTop";
 import * as monaco from 'monaco-editor';
-import CppCompiler from "./components/CppCompiler";
 
 // Socket connection is established once and reused.
 const socket = io("http://localhost:3000");
@@ -533,10 +532,32 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        {currentFileLanguage === "cpp" && (
-            <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: "1rem" }}>
-                <CppCompiler code={currentFileContent} theme={theme} />
+       <Toaster />
+
+{/* Conditionally render the C++ compiler if the active file is C++ */}
+{currentFileLanguage === "cpp" && (
+    <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: "1rem" }}>
+        <CppCompiler code={currentFileContent} theme={theme} />
+    </div>
+)}
+
+{/* Main application layout */}
+<ResizableLayout
+    sidebar={
+        <div className="sidebar">
+            <button onClick={toggleTheme} className="theme-toggle-btn">
+                {theme === "light" ? "☀️ Light Mode" : "🌙 Dark Mode"}
+            </button>
+            <div className="room-info">
+                <h2>Code Room: {roomId}</h2>
+                <button
+                    className="copy-room-id-btn"
+                    onClick={copyRoomId}
+                    title="Copy Room ID to clipboard"
+                >
+                    <span className="copy-icon">📋</span>
+                    <span className="copy-text">Copy ID</span>
+                </button>
             </div>
         )}
         <ResizableLayout
