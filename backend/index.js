@@ -100,6 +100,6 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/vite-project/dist/index.html"));
 });
 
-server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// server.listen(port, () => {
+//   console.log(`Server is running on port ${port}`);
+// });
