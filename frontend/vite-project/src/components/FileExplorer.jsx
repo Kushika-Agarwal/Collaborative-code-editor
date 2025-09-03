@@ -160,18 +160,18 @@ const FileExplorer = ({
       <div className="file-actions-toolbar">
         <div className="import-actions">
           <button className="import-files-btn" onClick={triggerImportFiles} title="Import files">
-            <span className="icon">📄</span> Import Files
+            <span className="icon">📄</span> <span>Import Files</span>
           </button>
           <button className="import-folder-btn" onClick={triggerImportFolder} title="Import a folder">
-            <span className="icon">📁</span> Import Folder
+            <span className="icon">📁</span> <span>Import Folder</span>
           </button>
         </div>
         <div className="export-actions">
           <button className="export-current-btn" onClick={handleExportCurrent} title="Download active file">
-            <span className="icon">⬇️</span> Export Current
+            <span className="icon">⬇️</span> <span>Export Current</span>
           </button>
           <button className="export-all-btn" onClick={handleExportAll} title="Download all files as ZIP">
-            <span className="icon">📦</span> Export All
+            <span className="icon">📦</span> <span>Export All</span>
           </button>
         </div>
         {/* Hidden inputs for file/folder selection */}
