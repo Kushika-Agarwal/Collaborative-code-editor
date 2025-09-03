@@ -3,11 +3,17 @@ import express from 'express';
 import RoomController from '../controllers/RoomController.js';
 import VideoCallController from '../controllers/VideoCallController.js';
 
+import CppCompilerController from '../controllers/CppCompilerController.js';
+import CSharpCompilerController from '../controllers/CSharpCompilerController.js';
+
+
 // Create controller instances (io will be null for HTTP routes)
 const roomController = new RoomController(null);
 const videoCallController = new VideoCallController(null);
 
 const router = express.Router();
+
+CSharpCompilerController(router);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
