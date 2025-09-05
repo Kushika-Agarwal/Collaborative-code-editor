@@ -14,6 +14,40 @@ class RoomController {
       .map((u) => u.userName);
     this.io.to(roomId).emit("typingUsers", typingUsers);
   }
+
+  // Handle remote cursor movement
+  handleCursorMove(socket, { roomId, filename, position }) {
+    try {
+      const user = userService.getUser(socket.id);
+      if (user) {
+        // Broadcast to all users in the room except sender
+        socket.to(roomId).emit("cursorPosition", {
+          roomId,
+          filename,
+          position,
+          userId: socket.id,
+          userName: user.userName,
+        });
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Error in handleCursorMove:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Handle clearing of a user's cursor (e.g., on leave/disconnect)
+  handleCursorClear(socket, { roomId, userId }) {
+    try {
+      // Broadcast to all users in the room except sender
+      socket.to(roomId).emit("cursorCleared", { userId });
+      return { success: true };
+    } catch (error) {
+      console.error('Error in handleCursorClear:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Handle user joining a room
   handleJoinRoom(socket, { roomId, userName }) {
     try {

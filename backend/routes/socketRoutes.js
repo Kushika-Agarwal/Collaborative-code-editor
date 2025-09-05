@@ -59,6 +59,20 @@ class SocketRoutes {
         }
       });
 
+      socket.on("cursorMove", (data) => {
+        const result = this.roomController.handleCursorMove(socket, data);
+        if (!result.success) {
+          console.error('Cursor move error:', result.error);
+        }
+      });
+
+      socket.on("cursorClear", (data) => {
+        const result = this.roomController.handleCursorClear(socket, data);
+        if (!result.success) {
+          console.error('Cursor clear error:', result.error);
+        }
+      });
+
       socket.on("chatMessage", (data) => {
         const result = this.roomController.handleChatMessage(socket, data);
         if (!result.success) {
