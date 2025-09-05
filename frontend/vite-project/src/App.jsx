@@ -5,6 +5,7 @@ const socket = io("http://localhost:3000");
 import Editor from "@monaco-editor/react";
 import VideoCall from "./VideoCall";
 import VersionHistory from "./VersionHistory";
+import { useToast } from "./hooks/use-toast";
 
 const App = () => {
   const [joined, setJoined] = useState(false);
@@ -16,6 +17,8 @@ const App = () => {
   const [users, setUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [typingTimeout, setTypingTimeout] = useState(null);
+  const { toast } = useToast();
+  const [typing, setTyping] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [showVersionHistory, setShowVersionHistory] = useState(false);
