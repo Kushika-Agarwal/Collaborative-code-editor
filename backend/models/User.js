@@ -1,90 +1,78 @@
-// User model - handles user data and operations
+// User model - optimized version
 class User {
   constructor(socketId, userName) {
     this.socketId = socketId;
     this.userName = userName;
     this.currentRoom = null;
-    this.isTyping = false;
-    this.isInCall = false;
-    this.cameraOn = false;
-    this.micOn = false;
+    this._isTyping = false;
+    this._isInCall = false;
+    this._cameraOn = false;
+    this._micOn = false;
     this.connectedAt = new Date();
   }
 
-  // Join a room
+  // ----- Room Management -----
   joinRoom(roomId) {
     this.currentRoom = roomId;
-    return this.currentRoom;
+    return this; // allow chaining
   }
 
-  // Leave current room
   leaveRoom() {
-    const previousRoom = this.currentRoom;
+    const leftRoom = this.currentRoom;
     this.currentRoom = null;
-    return previousRoom;
+    return leftRoom;
   }
 
-  // Get current room
-  getCurrentRoom() {
-    return this.currentRoom;
+  // ----- Typing Status -----
+  set typing(status) {
+    this._isTyping = Boolean(status);
   }
 
-  // Set typing status
-  setTyping(isTyping) {
-    this.isTyping = isTyping;
-    return this.isTyping;
+  get typing() {
+    return this._isTyping;
   }
 
-  // Get typing status
-  getTyping() {
-    return this.isTyping;
-  }
-
-  // Join video call
+  // ----- Call Management -----
   joinCall() {
-    this.isInCall = true;
-    return this.isInCall;
+    this._isInCall = true;
+    return this;
   }
 
-  // Leave video call
   leaveCall() {
-    this.isInCall = false;
-    this.cameraOn = false;
-    this.micOn = false;
-    return this.isInCall;
+    this._isInCall = false;
+    this._cameraOn = false;
+    this._micOn = false;
+    return this;
   }
 
-  // Toggle camera
   toggleCamera() {
-    this.cameraOn = !this.cameraOn;
-    return this.cameraOn;
+    this._cameraOn = !this._cameraOn;
+    return this._cameraOn;
   }
 
-  // Toggle microphone
   toggleMicrophone() {
-    this.micOn = !this.micOn;
-    return this.micOn;
+    this._micOn = !this._micOn;
+    return this._micOn;
   }
 
-  // Get user info
-  getInfo() {
+  // ----- User Info -----
+  get info() {
     return {
       socketId: this.socketId,
       userName: this.userName,
       currentRoom: this.currentRoom,
-      isTyping: this.isTyping,
-      isInCall: this.isInCall,
-      cameraOn: this.cameraOn,
-      micOn: this.micOn,
+      isTyping: this._isTyping,
+      isInCall: this._isInCall,
+      cameraOn: this._cameraOn,
+      micOn: this._micOn,
       connectedAt: this.connectedAt
     };
   }
 
-  // Update user name
   updateName(newName) {
-    this.userName = newName;
+    this.userName = newName.trim();
     return this.userName;
   }
 }
 
-export default User; 
+export default User;
