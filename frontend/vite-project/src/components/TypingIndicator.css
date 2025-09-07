@@ -1,0 +1,144 @@
+.typing-indicator {
+  padding: 8px 16px;
+  background: var(--background-secondary, rgba(0, 0, 0, 0.05));
+  border-radius: 12px;
+  margin: 8px 0;
+  border: 1px solid var(--border-color, #e0e0e0);
+  animation: fadeInUp 0.3s ease-out;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.typing-indicator-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.typing-dots .dot {
+  width: 4px;
+  height: 4px;
+  background-color: var(--accent-color, #2563eb);
+  border-radius: 50%;
+  animation: typingDotAnimation 1.4s infinite ease-in-out both;
+}
+
+.typing-dots .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dots .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.typing-dots .dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+.typing-text {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+}
+
+/* Dark mode styles */
+body.light-mode .typing-indicator {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: #f0f0f0;
+}
+
+body:not(.light-mode) .typing-indicator {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #333;
+}
+
+body:not(.light-mode) .typing-text {
+  color: #94a3b8;
+}
+
+body:not(.light-mode) .typing-dots .dot {
+  background-color: #60a5fa;
+}
+
+/* Animations */
+@keyframes typingDotAnimation {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .typing-indicator {
+    padding: 6px 12px;
+    margin: 6px 0;
+    min-height: 32px;
+  }
+  
+  .typing-text {
+    font-size: 12px;
+  }
+  
+  .typing-dots .dot {
+    width: 3px;
+    height: 3px;
+  }
+}
+
+/* Alternative design with avatars for larger screens */
+@media (min-width: 1024px) {
+  .typing-indicator-with-avatars {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .typing-user-avatars {
+    display: flex;
+    gap: -8px; /* Overlapping avatars */
+  }
+  
+  .typing-user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent-color, #2563eb);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--background-primary, white);
+    position: relative;
+    z-index: 1;
+  }
+  
+  .typing-user-avatar:not(:first-child) {
+    margin-left: -8px;
+    z-index: 0;
+  }
+}

@@ -292,14 +292,66 @@ class RoomController {
     }
   }
 
-  // Handle typing indicator
+  // Handle typing indicator - now supports multiple users
   handleTyping(socket, { roomId, userName }) {
     try {
+      const user = userService.getUser(socket.id);
+      if (!user || user.getCurrentRoom() !== roomId) {
+        return { success: false, error: 'User not in room' };
+      }
+
+      // Update user typing state
       userService.updateUserTyping(socket.id, true);
-      socket.to(roomId).emit("userTyping", userName);
+      
+      // Get all typing users in the room directly from userService
+      const allUsers = userService.getAllUsers();
+      const typingUsers = allUsers.filter(u => 
+        u.currentRoom === roomId && 
+        u.isTyping && 
+        u.socketId !== socket.id
+      ).map(u => ({
+        socketId: u.socketId,
+        userName: u.userName
+      }));
+      
+      // Broadcast updated typing users to all users in the room except sender
+      socket.to(roomId).emit("usersTyping", { typingUsers });
+      
       return { success: true };
     } catch (error) {
       console.error('Error in handleTyping:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Handle stop typing indicator
+  handleStopTyping(socket, { roomId, userName }) {
+    try {
+      const user = userService.getUser(socket.id);
+      if (!user || user.getCurrentRoom() !== roomId) {
+        return { success: false, error: 'User not in room' };
+      }
+
+      // Update user typing state
+      userService.updateUserTyping(socket.id, false);
+      
+      // Get all typing users in the room directly from userService
+      const allUsers = userService.getAllUsers();
+      const typingUsers = allUsers.filter(u => 
+        u.currentRoom === roomId && 
+        u.isTyping && 
+        u.socketId !== socket.id
+      ).map(u => ({
+        socketId: u.socketId,
+        userName: u.userName
+      }));
+      
+      // Broadcast updated typing users to all users in the room except sender
+      socket.to(roomId).emit("usersTyping", { typingUsers });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error in handleStopTyping:', error);
       return { success: false, error: error.message };
     }
   }
