@@ -162,6 +162,20 @@ class RoomService {
     return Array.from(this.rooms.keys());
   }
 
+  // Get typing users in room
+  getTypingUsersInRoom(roomId) {
+    // To avoid circular dependency, we'll get the userService instance from the controller
+    // For now, return empty array and we'll pass users from controller
+    const room = this.rooms.get(roomId);
+    
+    if (!room) {
+      return [];
+    }
+    
+    // This will be populated by the controller
+    return [];
+  }
+
   // Get room statistics
   getRoomStats() {
     const stats = {

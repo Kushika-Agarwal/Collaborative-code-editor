@@ -9,6 +9,7 @@ import ResizableLayout from "./components/ResizableLayout";
 import ChatWindow from "./components/ChatWindow";
 import FileExplorer from "./components/FileExplorer";
 import LandingPage from "./pages/Landing_page";
+import TypingIndicator from "./components/TypingIndicator";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
@@ -45,7 +46,8 @@ const App = () => {
   const [pendingFilename, setPendingFilename] = useState("");
   const [users, setUsers] = useState([]);
   const { toast } = useToast();
-  const [typing, setTyping] = useState(false);
+  const [typing, setTyping] = useState(false); // Legacy typing state for backward compatibility
+  const [typingUsers, setTypingUsers] = useState([]); // New state for multiple typing users
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -70,8 +72,15 @@ const App = () => {
   // New state and ref for connection status
   const [isConnected, setIsConnected] = useState(socket.connected);
   const isInitialConnect = useRef(true);
+  
+  // Refs for editor and cursor tracking
+  const editorRef = useRef(null);
+  const decorationsRef = useRef({});
+  const widgetsRef = useRef({});
+  const colorCacheRef = useRef({});
 
   const [codeChangeTimeout, setCodeChangeTimeout] = useState(null);
+  const [typingTimeout, setTypingTimeout] = useState(null);
   const [theme, setTheme] = useState("dark");
 
 
@@ -250,10 +259,15 @@ const App = () => {
       setCode(newCode);
       setCurrentFileContent(newCode);
     });
-    // Another user is typing in the editor.
+    // Another user is typing in the editor (legacy support).
     socket.on("userTyping", (user) => {
       setTyping(`${user.slice(0, 8)} is typing...`);
       setTimeout(() => setTyping(""), 3000);
+    });
+    
+    // Multiple users typing (new implementation)
+    socket.on("usersTyping", ({ typingUsers }) => {
+      setTypingUsers(typingUsers);
     });
     socket.on("languageUpdated", (newLanguage) => {
       setLanguage(newLanguage);
@@ -451,10 +465,23 @@ const App = () => {
   }, [roomId, userName, activeFile]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => socket.emit("leaveRoom");
+    const handleBeforeUnload = () => {
+      // Clean up typing timeout and emit stop typing
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+      socket.emit('stopTyping', { roomId, userName });
+      socket.emit("leaveRoom");
+    };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // Clean up typing timeout on component unmount
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+    };
+  }, [typingTimeout, roomId, userName]);
 
   const joinRoom = () => {
     if (!roomId || !userName)
@@ -542,6 +569,15 @@ const App = () => {
   };
 
   const leaveRoom = () => {
+    // Clean up typing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+      setTypingTimeout(null);
+    }
+    
+    // Emit stop typing before leaving
+    socket.emit('stopTyping', { roomId, userName });
+    
     socket.emit("leaveRoom");
     setJoined(false);
     setRoomId("");
@@ -551,6 +587,7 @@ const App = () => {
     setCurrentFileContent("// Welcome to the collaborative code editor\n// Start coding here...");
     setUsers([]);
     setTyping("");
+    setTypingUsers([]); // Reset typing users
     setLanguage("javascript");
     setCurrentFileLanguage("javascript");
     setFilename("untitled.js");
@@ -595,8 +632,20 @@ const App = () => {
 
     setCodeChangeTimeout(newTimeout);
 
-    // typing notification
+    // Enhanced typing notification with stop typing
     socket.emit('typing', { roomId, userName });
+    
+    // Clear existing typing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+    }
+    
+    // Set stop typing timeout (3 seconds after user stops typing)
+    const newTypingTimeout = setTimeout(() => {
+      socket.emit('stopTyping', { roomId, userName });
+    }, 3000);
+    
+    setTypingTimeout(newTypingTimeout);
   };
 
 
@@ -717,6 +766,9 @@ const App = () => {
   };
 
   const handleEditorOnMount = (editor, monaco) => {
+    // Store editor reference
+    editorRef.current = editor;
+    
     const placeholderEl = document.querySelector('.monaco-placeholder');
     if (placeholderEl) placeholderEl.style.display = 'block';
     editor.focus();
@@ -886,7 +938,14 @@ const App = () => {
                 <li key={index}>{user.slice(0, 8)}</li>
               ))}
             </ul>
-            <p className="typing-indicator">{typing}</p>
+            
+            {/* New typing indicator component */}
+            <TypingIndicator typingUsers={typingUsers} />
+            
+            {/* Legacy typing indicator for backward compatibility */}
+            {typing && typingUsers.length === 0 && (
+              <p className="typing-indicator">{typing}</p>
+            )}
             
             {/* File Explorer Component */}
             <FileExplorer

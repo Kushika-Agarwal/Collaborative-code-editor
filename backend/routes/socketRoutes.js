@@ -117,19 +117,18 @@ class SocketRoutes {
         }
       });
 
+      socket.on("stopTyping", (data) => {
+        const result = this.roomController.handleStopTyping(socket, data);
+        if (!result.success) {
+          console.error("Stop typing error:", result.error);
+        }
+      });
+
       socket.on("chatMessage", (data) => {
         const result = this.roomController.handleChatMessage(socket, data);
         if (!result.success) {
           console.error("Chat message error:", result.error);
         }
-      });
-      // it shows who is typing!!
-      socket.on("typing", ({ roomId, user }) => {
-        socket.to(roomId).emit("userTyping", { user });
-      });
-
-      socket.on("stopTyping", ({ roomId, user }) => {
-        socket.to(roomId).emit("userStopTyping", { user });
       });
 
       // Video call events
