@@ -25,6 +25,7 @@ import {
 import BackToTop from "./components/ui/BackToTop";
 
 import * as monaco from 'monaco-editor';
+import FloatingChatbot from "./components/floating";
 
 
 const App = () => {
@@ -1022,6 +1023,7 @@ const App = () => {
                 )}
               </span>
             </div>
+            <FloatingChatbot/>
             <div style={{ position: "relative", height: "calc(100% - 40px)" }}>
             
             {/* Changed from defaultLanguage to language */}
