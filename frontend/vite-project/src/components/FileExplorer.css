@@ -165,6 +165,10 @@
 }
 
 .file-actions-toolbar button {
+  flex: 1;
+  min-width: 120px;
+  justify-content: center;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -219,6 +223,7 @@
 
 .file-actions-toolbar .icon {
   font-size: 14px;
+  flex-shrink:0;
 }
 
 /* Light mode adjustments */

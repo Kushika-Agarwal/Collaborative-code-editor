@@ -14,7 +14,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useToast } from "./hooks/use-toast";
-import NotFound from "./pages/not-found";
 import { 
   detectFileType, 
   getLanguageDisplayName, 
@@ -31,7 +30,7 @@ import * as monaco from 'monaco-editor';
 const App = () => {
   const [joined, setJoined] = useState(false);
   const [roomId, setRoomId] = useState("");
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState(() => localStorage.getItem("userName") || "");
   
   // File management state
   const [files, setFiles] = useState([]);
@@ -64,6 +63,9 @@ const App = () => {
   // Resizable panel states
   const [isChatDetached, setIsChatDetached] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false);
+
 
   // New state and ref for connection status
   const [isConnected, setIsConnected] = useState(socket.connected);
@@ -129,6 +131,26 @@ const App = () => {
     };
   }, [toast]);
 
+
+  // Enhancement:
+  //  Show Active File in Browser Tab Title
+  useEffect(() => {
+  let baseTitle = activeFile || filename || "Collaborative Editor";
+  if (joined) {
+    if (activeFile) {
+      baseTitle = `${activeFile} — CodeRoom`;
+    } else {
+      baseTitle = `CodeRoom (${roomId})`;
+    }
+  } else {
+    baseTitle = 'Real-time Collaborative Code Editor';
+  }
+  document.title = hasUnsavedEdits ? `● ${baseTitle}` : baseTitle;
+  return () => {
+    document.title = 'Real-time Collaborative Code Editor';
+  };
+}, [hasUnsavedEdits, joined, activeFile, filename, roomId]);
+
   const toggleTheme = () => {
     if (theme === "dark") {
       document.body.classList.add("light-mode");
@@ -141,13 +163,94 @@ const App = () => {
     }
   };
 
+  // Helper: per-user color selection
+  const getUserColor = (userId) => {
+    if (colorCacheRef.current[userId]) return colorCacheRef.current[userId];
+    const palette = [
+      '#E57373', '#81C784', '#64B5F6', '#FFD54F', '#BA68C8',
+      '#4DB6AC', '#F06292', '#7986CB', '#A1887F', '#90A4AE'
+    ];
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+    const color = palette[hash % palette.length];
+    colorCacheRef.current[userId] = color;
+    return color;
+  };
+
+  // Render a remote cursor decoration and label
+  const renderRemoteCursor = (payload) => {
+    const editor = editorRef.current;
+    if (!editor || !payload) return;
+    const model = editor.getModel();
+    if (!model) return;
+    const currentFileName = activeFile || filename;
+    if (!payload.filename || payload.filename !== currentFileName) return;
+
+    const { userId, userName, position } = payload;
+    const range = new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column);
+
+    // Update decoration
+    const opts = {
+      className: 'remote-cursor',
+      stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      overviewRuler: { color: getUserColor(userId), position: monaco.editor.OverviewRulerLane.Center },
+      after: { content: '', inlineClassName: 'remote-cursor-inline' },
+      isWholeLine: false,
+    };
+    const newDecos = editor.deltaDecorations(decorationsRef.current[userId] || [], [{ range, options: opts }]);
+    decorationsRef.current[userId] = newDecos;
+
+    // Update/add content widget for name label
+    const id = `remote-cursor-widget-${userId}`;
+    const node = document.createElement('div');
+    node.className = 'remote-cursor-widget';
+    node.style.backgroundColor = getUserColor(userId);
+    node.textContent = (userName || 'User').slice(0, 12);
+
+    const widget = {
+      getId: () => id,
+      getDomNode: () => node,
+      getPosition: () => ({ position, preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE, monaco.editor.ContentWidgetPositionPreference.BELOW] }),
+    };
+
+    // Remove previous widget if exists
+    if (widgetsRef.current[userId]) {
+      try { editor.removeContentWidget(widgetsRef.current[userId]); } catch {}
+    }
+    widgetsRef.current[userId] = widget;
+    editor.addContentWidget(widget);
+    editor.layoutContentWidget(widget);
+  };
+
+  const clearRemoteCursor = (userId) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (decorationsRef.current[userId]) {
+      editor.deltaDecorations(decorationsRef.current[userId], []);
+      delete decorationsRef.current[userId];
+    }
+    if (widgetsRef.current[userId]) {
+      try { editor.removeContentWidget(widgetsRef.current[userId]); } catch {}
+      delete widgetsRef.current[userId];
+    }
+  };
+
+  const clearAllRemoteCursors = () => {
+    Object.keys(decorationsRef.current).forEach(clearRemoteCursor);
+  };
+
+  // Main effect for handling all real-time socket events
+// Main effect for handling all real-time socket events
   useEffect(() => {
-    // User and room events
+    // --- User and Room Events ---
+    // A new user has joined (or left), so we update the list of participants.
     socket.on("userJoined", (users) => setUsers(users));
     socket.on("codeUpdated", (newCode) => {
       setCode(newCode);
       setCurrentFileContent(newCode);
     });
+    // Another user is typing in the editor.
     socket.on("userTyping", (user) => {
       setTyping(`${user.slice(0, 8)} is typing...`);
       setTimeout(() => setTyping(""), 3000);
@@ -159,8 +262,9 @@ const App = () => {
     socket.on("chatMessage", ({ userName, message }) =>
       setChatMessages((prev) => [...prev, { userName, message }])
     );
-    
-    // File management events
+
+    // --- File Management Events ---
+    // The entire file structure has changed (e.g., on initial join), so replace the local state.
     socket.on("filesUpdated", ({ files: newFiles, activeFile: newActiveFile }) => {
       setFiles(newFiles);
       setActiveFile(newActiveFile);
@@ -176,7 +280,8 @@ const App = () => {
         console.log('[DEBUG] File switched:', currentFile.filename, 'Detected language:', detectedLang);
       }
     });
-
+    
+    // A single new file was created by a user.
     socket.on("fileCreated", ({ file, createdBy }) => {
       setFiles(prev => [...prev, file]);
       setChatMessages((prev) => [...prev, { 
@@ -184,7 +289,8 @@ const App = () => {
         message: `File "${file.filename}" created by ${createdBy}` 
       }]);
     });
-
+    
+    // A file was deleted by a user.
     socket.on("fileDeleted", ({ filename, deletedBy, newActiveFile }) => {
       setFiles(prev => prev.filter(f => f.filename !== filename));
       
@@ -199,7 +305,8 @@ const App = () => {
         message: `File "${filename}" deleted by ${deletedBy}` 
       }]);
     });
-
+    
+    // A file was renamed. Update the filename in our local state.
     socket.on("fileRenamed", ({ oldFilename, newFilename, renamedBy }) => {
       setFiles(prev => prev.map(f => 
         f.filename === oldFilename 
@@ -217,7 +324,8 @@ const App = () => {
         message: `File renamed from "${oldFilename}" to "${newFilename}" by ${renamedBy}` 
       }]);
     });
-
+    
+    // A user switched to a different active file.
     socket.on("activeFileChanged", ({ filename, file, switchedBy }) => {
       setActiveFile(filename);
       setCurrentFileContent(file.code);
@@ -233,6 +341,7 @@ const App = () => {
       })));
     });
 
+    // The active file's code was updated by another user.
     socket.on("fileCodeUpdated", ({ filename, code: newCode }) => {
       if (filename === activeFile) {
         setCurrentFileContent(newCode);
@@ -246,7 +355,8 @@ const App = () => {
           : f
       ));
     });
-
+    
+    // The language for a file was changed.
     socket.on("fileLanguageUpdated", ({ filename, language: newLanguage }) => {
       if (filename === activeFile) {
         setCurrentFileLanguage(newLanguage);
@@ -261,8 +371,10 @@ const App = () => {
       ));
     });
 
-    // Version history events
+    // --- Version History Events ---
+    // The server has confirmed a new version was added (e.g., after an edit).
     socket.on("versionAdded", (data) => setUndoRedoState(data.undoRedoState));
+    // The code state was changed by an undo/redo action from another user.
     socket.on("codeReverted", (data) => {
       setCode(data.code);
       setLanguage(data.language);
@@ -316,15 +428,16 @@ const App = () => {
         { userName: "System", message: `Filename changed from "${oldFilename}" to "${newFilename}" by ${changedBy}` }
       ]);
     });
-    // Cursor position handlers
+    // --- Cursor Position Events ---
+    // Another user's cursor moved. We need to render it.
     const onCursorPosition = (payload) => {
-      renderRemoteCursor(payload);
-    };
-
-    const onCursorCleared = (payload) => {
-      if (payload && payload.userId) {
-        clearRemoteCursor(payload.userId);
+      if (payload.userId !== socket.id) {
+        renderRemoteCursor(payload);
       }
+    };
+    
+    const onCursorCleared = (payload) => {
+      clearRemoteCursor(payload.userId);
     };
 
     // Register cursor event listeners
@@ -332,6 +445,7 @@ const App = () => {
     socket.on('cursorCleared', onCursorCleared);
 
     return () => {
+      // Clean up all listeners when the component unmounts or dependencies change.
       socket.off();
     };
   }, [roomId, userName, activeFile]);
@@ -345,6 +459,7 @@ const App = () => {
   const joinRoom = () => {
     if (!roomId || !userName)
       return alert("Please enter both Room Id and Your Name");
+    localStorage.setItem("userName", userName); // <-- Add this line
     socket.emit("join_room", { roomId, userName });
     setJoined(true);
 
@@ -431,6 +546,7 @@ const App = () => {
     setJoined(false);
     setRoomId("");
     setUserName("");
+    localStorage.removeItem("userName");
     setCode("// Welcome to the collaborative code editor\n// Start coding here...");
     setCurrentFileContent("// Welcome to the collaborative code editor\n// Start coding here...");
     setUsers([]);
@@ -458,12 +574,14 @@ const App = () => {
 
     setCode(newCode);
     setCurrentFileContent(newCode);
+    setHasUnsavedEdits(true);
 
     // clear existing timeout if any
     if (codeChangeTimeout) {
       window.clearTimeout(codeChangeTimeout);
     }
 
+    // Debounce code changes to avoid flooding the server with events on every keystroke.
     const newTimeout = window.setTimeout(() => {
       // Use new file-specific code change event if active file exists
       if (activeFile) {
@@ -472,6 +590,7 @@ const App = () => {
         // Fallback to legacy method
         socket.emit('codeChange', { roomId, code: newCode });
       }
+      setHasUnsavedEdits(false);
     }, 500);
 
     setCodeChangeTimeout(newTimeout);
@@ -710,6 +829,7 @@ const App = () => {
    const handleJoinFromLanding = (newRoomId, newUserName) => {
     setRoomId(newRoomId);
     setUserName(newUserName);
+    localStorage.setItem("userName", newUserName);
     socket.emit("join_room", { roomId: newRoomId, userName: newUserName });
     setJoined(true);
 
@@ -732,12 +852,14 @@ const App = () => {
           <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        {/* Reconnecting indicator */}
+        {/* Reconnecting indicator
         {!isConnected && (
           <div className="reconnecting-overlay">
             Reconnecting…
           </div>
-        )}
+        )} 
+        */}       
+        
     <>
       <ResizableLayout
         sidebar={
@@ -756,7 +878,9 @@ const App = () => {
                 <span className="copy-text">Copy ID</span>
               </button>
             </div>
-            <h3>Users in Room:</h3>
+            <h3>
+              Users in Room: <span style={{ fontWeight: "bold", color: "#2563eb" }}>{users.length}</span>
+            </h3>
             <ul>
               {users.map((user, index) => (
                 <li key={index}>{user.slice(0, 8)}</li>
@@ -899,16 +1023,25 @@ const App = () => {
               </span>
             </div>
             <div style={{ position: "relative", height: "calc(100% - 40px)" }}>
+            
+            {/* Changed from defaultLanguage to language */}
+             {/* Defaultlanguage prop only sets the language when the editor first loads and doesn't update it afterward. */}
+
+             {/* dded line numbers in the code editor
+              Displaying line numbers alongside 
+              the code will make collaboration and debugging easier. */}
+
             <Editor
               height="100%"
-              defaultLanguage={currentFileLanguage}
-              value={currentFileContent || code}
+              language={currentFileLanguage} 
+              value={currentFileContent || code} 
               onChange={handleChange}
               onMount={handleEditorOnMount}
               theme={theme === "dark" ? "vs-dark" : "vs-light"}
               options={{
-                minimap: { enabled: false },
+                minimap:{ enabled: false },
                 fontSize: 14,
+                lineNumbers: "on",
               }}
             />
             {!(currentFileContent || code) && (
