@@ -70,19 +70,44 @@ const FileExplorer = ({
   // Handle responsive behavior
   React.useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      const width = window.innerWidth;
+      
+      if (width <= 768) {
+        // Mobile: force collapsed state and ensure mobile menu can be used
         setIsSidebarCollapsed(true);
-      } else if (window.innerWidth > 1024) {
+      } else if (width <= 1024) {
+        // Tablet: allow collapsed/expanded but close mobile menu
+        setIsMobileMenuOpen(false);
+      } else {
+        // Desktop: expand sidebar and close mobile menu
         setIsSidebarCollapsed(false);
         setIsMobileMenuOpen(false);
       }
     };
 
+    // Add event listener
     window.addEventListener('resize', handleResize);
-    handleResize(); // Call once on mount
+    
+    // Call immediately to set initial state
+    handleResize();
 
+    // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Prevent body scroll when mobile menu is open
+  React.useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   // Import: read selected FileList and create files in room
   const importFileList = async (fileList) => {
@@ -218,7 +243,7 @@ const FileExplorer = ({
           </div>
           <div className="export-actions">
             <button className="export-current-btn" onClick={handleExportCurrent} title="Download active file">
-              <span className="icon">⬇️</span> 
+              <span className="icon">⬇</span> 
               {!isSidebarCollapsed && <span className="btn-text">Export Current</span>}
             </button>
             <button className="export-all-btn" onClick={handleExportAll} title="Download all files as ZIP">

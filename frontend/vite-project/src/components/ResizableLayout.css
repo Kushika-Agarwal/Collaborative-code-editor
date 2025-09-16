@@ -206,35 +206,33 @@
   height: 35px;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments - Modified to work with FileExplorer mobile overlay */
 @media (max-width: 768px) {
   .resizable-layout {
-    flex-direction: column;
+    /* Keep flex-direction: row to allow FileExplorer mobile overlay to work */
+    flex-direction: row;
   }
   
   .resizable-sidebar {
-    height: auto;
-    max-height: 30vh;
-    width: 100% !important;
-    min-width: unset;
-    max-width: unset;
+    /* Let FileExplorer handle its own mobile positioning */
+    position: relative;
+    z-index: 1;
   }
   
   .resizable-editor {
-    height: auto;
     flex: 1;
+    /* Ensure editor takes full width when sidebar is mobile overlay */
+    width: 100%;
   }
   
   .resizable-chat {
-    height: 40vh;
-    width: 100% !important;
-    min-width: unset;
-    max-width: unset;
-    border-left: none;
-    border-top: 1px solid var(--border-color);
+    height: 100vh;
+    min-width: 250px;
+    max-width: 350px;
   }
   
-  .resize-handle {
+  /* Hide sidebar resizer on mobile, keep chat resizer */
+  .resize-handle.sidebar-resizer {
     display: none;
   }
   
@@ -515,30 +513,26 @@
 
 @media (max-width: 480px) {
   .resizable-layout {
-    flex-direction: column;
+    /* Keep row layout for very small screens too */
+    flex-direction: row;
   }
   
   .resizable-sidebar {
-    width: 100% !important;
-    max-height: 30vh;
-    min-width: auto;
-    max-width: none;
+    /* FileExplorer handles its own mobile positioning */
+    position: relative;
   }
   
   .resizable-editor {
-    width: 100% !important;
-    min-width: auto;
+    flex: 1;
+    width: 100%;
   }
   
   .resizable-chat {
-    width: 100% !important;
-    min-width: auto;
-    max-width: none;
-    border-left: none;
-    border-top: 1px solid var(--border-color);
+    min-width: 200px;
+    max-width: 280px;
   }
   
-  .resizer {
+  .resize-handle.sidebar-resizer {
     display: none;
   }
 }
