@@ -15,6 +15,8 @@ const FileExplorer = ({
   const [showNewFileForm, setShowNewFileForm] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [showContextMenu, setShowContextMenu] = useState(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const fileInputRef = React.useRef(null);
   const folderInputRef = React.useRef(null);
 
@@ -50,12 +52,62 @@ const FileExplorer = ({
     setShowContextMenu(null);
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
   // Close context menu when clicking outside
   React.useEffect(() => {
     const handleClick = () => closeContextMenu();
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, []);
+
+  // Handle responsive behavior
+  React.useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      
+      if (width <= 768) {
+        // Mobile: force collapsed state and ensure mobile menu can be used
+        setIsSidebarCollapsed(true);
+      } else if (width <= 1024) {
+        // Tablet: allow collapsed/expanded but close mobile menu
+        setIsMobileMenuOpen(false);
+      } else {
+        // Desktop: expand sidebar and close mobile menu
+        setIsSidebarCollapsed(false);
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Call immediately to set initial state
+    handleResize();
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Prevent body scroll when mobile menu is open
+  React.useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   // Import: read selected FileList and create files in room
   const importFileList = async (fileList) => {
@@ -144,135 +196,167 @@ const FileExplorer = ({
   };
 
   return (
-    <div className="file-explorer">
-      <div className="file-explorer-header">
-        <h3>Files</h3>
-        <button 
-          className="new-file-btn"
-          onClick={() => setShowNewFileForm(!showNewFileForm)}
-          title="Create new file"
-        >
-          +
-        </button>
-      </div>
+    <div className={`file-explorer ${isSidebarCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+      {/* Mobile hamburger button */}
+      <button 
+        className="mobile-toggle-btn"
+        onClick={toggleMobileMenu}
+        title="Toggle file explorer"
+      >
+        <span className="hamburger"></span>
+      </button>
 
-      {/* File Actions Toolbar */}
-      <div className="file-actions-toolbar">
-        <div className="import-actions">
-          <button className="import-files-btn" onClick={triggerImportFiles} title="Import files">
-            <span className="icon">📄</span> <span>Import Files</span>
-          </button>
-          <button className="import-folder-btn" onClick={triggerImportFolder} title="Import a folder">
-            <span className="icon">📁</span> <span>Import Folder</span>
-          </button>
-        </div>
-        <div className="export-actions">
-          <button className="export-current-btn" onClick={handleExportCurrent} title="Download active file">
-            <span className="icon">⬇️</span> <span>Export Current</span>
-          </button>
-          <button className="export-all-btn" onClick={handleExportAll} title="Download all files as ZIP">
-            <span className="icon">📦</span> <span>Export All</span>
-          </button>
-        </div>
-        {/* Hidden inputs for file/folder selection */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          style={{ display: 'none' }}
-          onChange={onFilesSelected}
-        />
-        <input
-          ref={folderInputRef}
-          type="file"
-          webkitdirectory=""
-          directory=""
-          style={{ display: 'none' }}
-          onChange={onFolderSelected}
-        />
-      </div>
+      {/* Sidebar toggle button for desktop */}
+      <button 
+        className="sidebar-toggle-btn"
+        onClick={toggleSidebar}
+        title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <span className={`toggle-icon ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+          {isSidebarCollapsed ? '→' : '←'}
+        </span>
+      </button>
 
-      {showNewFileForm && (
-        <div className="new-file-form-container">
-          <form onSubmit={handleCreateFile} className="new-file-form">
-            <input
-              type="text"
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              placeholder="Enter filename (e.g., main.js)"
-              className="new-file-input"
-              autoFocus
-            />
-            <div className="new-file-buttons">
-              <button type="submit" className="create-btn">Create</button>
-              <button 
-                type="button" 
-                className="cancel-btn"
-                onClick={() => {
-                  setShowNewFileForm(false);
-                  setNewFileName('');
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="file-tabs-container">
-        {files.map((file) => (
-          <div
-            key={file.filename}
-            onContextMenu={(e) => handleContextMenu(e, file.filename)}
+      <div className="file-explorer-content">
+        <div className="file-explorer-header">
+          <h3>{isSidebarCollapsed ? 'F' : 'Files'}</h3>
+          <button 
+            className="new-file-btn"
+            onClick={() => setShowNewFileForm(!showNewFileForm)}
+            title="Create new file"
           >
-            <FileTab
-              file={file}
-              isActive={file.filename === activeFile}
-              onClick={() => onFileSwitch(file.filename, userName)}
-              onClose={files.length > 1 ? (filename) => handleFileDelete(filename) : null}
-              onRename={onFileRename}
-              isRenamable={true}
-            />
+            +
+          </button>
+        </div>
+
+        {/* File Actions Toolbar */}
+        <div className="file-actions-toolbar">
+          <div className="import-actions">
+            <button className="import-files-btn" onClick={triggerImportFiles} title="Import files">
+              <span className="icon">📄</span> 
+              {!isSidebarCollapsed && <span className="btn-text">Import Files</span>}
+            </button>
+            <button className="import-folder-btn" onClick={triggerImportFolder} title="Import a folder">
+              <span className="icon">📁</span> 
+              {!isSidebarCollapsed && <span className="btn-text">Import Folder</span>}
+            </button>
           </div>
-        ))}
-      </div>
-
-      {files.length === 0 && (
-        <div className="no-files-message">
-          No files in this room. Create a new file to get started.
+          <div className="export-actions">
+            <button className="export-current-btn" onClick={handleExportCurrent} title="Download active file">
+              <span className="icon">⬇</span> 
+              {!isSidebarCollapsed && <span className="btn-text">Export Current</span>}
+            </button>
+            <button className="export-all-btn" onClick={handleExportAll} title="Download all files as ZIP">
+              <span className="icon">📦</span> 
+              {!isSidebarCollapsed && <span className="btn-text">Export All</span>}
+            </button>
+          </div>
+          {/* Hidden inputs for file/folder selection */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={onFilesSelected}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            webkitdirectory=""
+            directory=""
+            style={{ display: 'none' }}
+            onChange={onFolderSelected}
+          />
         </div>
-      )}
 
-      {/* Context Menu */}
-      {showContextMenu && (
-        <div
-          className="context-menu"
-          style={{
-            position: 'fixed',
-            left: showContextMenu.x,
-            top: showContextMenu.y,
-            zIndex: 1000
-          }}
-        >
-          <button
-            className="context-menu-item"
-            onClick={() => handleFileDelete(showContextMenu.filename)}
-            disabled={files.length <= 1}
-          >
-            Delete File
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              // Trigger rename by simulating double click on the tab
-              closeContextMenu();
+        {showNewFileForm && (
+          <div className="new-file-form-container">
+            <form onSubmit={handleCreateFile} className="new-file-form">
+              <input
+                type="text"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                placeholder={isSidebarCollapsed ? "filename.js" : "Enter filename (e.g., main.js)"}
+                className="new-file-input"
+                autoFocus
+              />
+              <div className="new-file-buttons">
+                <button type="submit" className="create-btn">
+                  {isSidebarCollapsed ? '✓' : 'Create'}
+                </button>
+                <button 
+                  type="button" 
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowNewFileForm(false);
+                    setNewFileName('');
+                  }}
+                >
+                  {isSidebarCollapsed ? '✕' : 'Cancel'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="file-tabs-container">
+          {files.map((file) => (
+            <div
+              key={file.filename}
+              onContextMenu={(e) => handleContextMenu(e, file.filename)}
+            >
+              <FileTab
+                file={file}
+                isActive={file.filename === activeFile}
+                onClick={() => onFileSwitch(file.filename, userName)}
+                onClose={files.length > 1 ? (filename) => handleFileDelete(filename) : null}
+                onRename={onFileRename}
+                isRenamable={true}
+                isCollapsed={isSidebarCollapsed}
+              />
+            </div>
+          ))}
+        </div>
+
+        {files.length === 0 && (
+          <div className="no-files-message">
+            {isSidebarCollapsed ? 'No files' : 'No files in this room. Create a new file to get started.'}
+          </div>
+        )}
+
+        {/* Context Menu */}
+        {showContextMenu && (
+          <div
+            className="context-menu"
+            style={{
+              position: 'fixed',
+              left: showContextMenu.x,
+              top: showContextMenu.y,
+              zIndex: 1000
             }}
           >
-            Rename File
-          </button>
-        </div>
-      )}
+            <button
+              className="context-menu-item"
+              onClick={() => handleFileDelete(showContextMenu.filename)}
+              disabled={files.length <= 1}
+            >
+              {isSidebarCollapsed ? 'Delete' : 'Delete File'}
+            </button>
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                // Trigger rename by simulating double click on the tab
+                closeContextMenu();
+              }}
+            >
+              {isSidebarCollapsed ? 'Rename' : 'Rename File'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && <div className="mobile-overlay" onClick={toggleMobileMenu}></div>}
     </div>
   );
 };

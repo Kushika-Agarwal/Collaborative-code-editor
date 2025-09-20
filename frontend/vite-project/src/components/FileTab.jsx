@@ -12,6 +12,7 @@ const FileTab = ({
   onClose,
   onRename,
   isRenamable = true,
+  isCollapsed = false,
   roomId,
   currentUser
 }) => {
@@ -104,40 +105,44 @@ const FileTab = ({
 
   return (
     <div
-      className={`file-tab ${isActive ? 'active' : ''}`}
+      className={`file-tab ${isActive ? 'active' : ''} ${isCollapsed ? 'collapsed' : ''}`}
       onClick={onClick}
       onDoubleClick={handleDoubleClick}
       title={`${file.filename} - ${isActive ? 'Active' : 'Click to open'}`}
     >
       <span className="file-icon">{getFileIcon(file.filename)}</span>
 
-      {isEditing ? (
-        <form onSubmit={handleSubmit} className="file-rename-form">
-          <input
-            type="text"
-            value={newName}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={() => {
-              setIsEditing(false);
-              socket.emit('stopTyping', { roomId, user: currentUser });
-            }}
-            className="file-rename-input"
-            autoFocus
-          />
-        </form>
-      ) : (
-        <span className="file-name">{file.filename}</span>
-      )}
+      {!isCollapsed && (
+        <>
+          {isEditing ? (
+            <form onSubmit={handleSubmit} className="file-rename-form">
+              <input
+                type="text"
+                value={newName}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onBlur={() => {
+                  setIsEditing(false);
+                  socket.emit('stopTyping', { roomId, user: currentUser });
+                }}
+                className="file-rename-input"
+                autoFocus
+              />
+            </form>
+          ) : (
+            <span className="file-name">{file.filename}</span>
+          )}
 
-      {onClose && (
-        <button
-          className="file-close-btn"
-          onClick={handleCloseClick}
-          title="Close file"
-        >
-          ×
-        </button>
+          {onClose && (
+            <button
+              className="file-close-btn"
+              onClick={handleCloseClick}
+              title="Close file"
+            >
+              ×
+            </button>
+          )}
+        </>
       )}
 
       {file.lastModified && !isActive && (
@@ -146,7 +151,7 @@ const FileTab = ({
         </span>
       )}
 
-      <TypingIndicator typingUsers={typingUsers} currentUser={currentUser} />
+      {!isCollapsed && <TypingIndicator typingUsers={typingUsers} currentUser={currentUser} />}
     </div>
   );
 };
