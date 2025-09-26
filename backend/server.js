@@ -7,7 +7,8 @@ import { Server } from "socket.io";
 import path, { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
-
+import dotenv from "dotenv"
+dotenv.config({ path: './.env' });
 // Import configurations
 import { serverConfig, staticConfig } from './config/server.js';
 
